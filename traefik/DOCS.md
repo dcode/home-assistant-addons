@@ -7,7 +7,7 @@ Traefik bundled as an Home Assistant add-on.
 Follow these steps to get the add-on installed on your system:
 
 1. Navigate in your Home Assistant frontend to __Supervisor -> Add-on Store__
-2. Add this new repository by URL (`https://github.com/alex3305/home-assistant-addons`)
+2. Add this new repository by URL (`https://github.com/dcode/home-assistant-addons`)
 3. Find the "Traefik" add-on and click it.
 4. Click on the "INSTALL" button
 
@@ -108,7 +108,7 @@ Enables insecure forwarding headers. When this option is enabled, the forwarded 
 
 ### Option `dynamic_configuration_path` (required)
 
-Path to the directory with the dynamic endpoint configuration. See the example above. 
+Path to the directory with the dynamic endpoint configuration. See the example above.
 
 ### Option `letsencrypt.enabled` (required)
 
@@ -136,13 +136,13 @@ When using the `dnsChallange` you will also need to set a provider to use. The l
 
 ### Option `letsencrypt.delayBeforeCheck`
 
-By default, the provider will verify the TXT DNS challenge record before letting ACME verify. If `delayBeforeCheck` is set and greater than zero, this check is delayed for the configured duration in seconds. 
+By default, the provider will verify the TXT DNS challenge record before letting ACME verify. If `delayBeforeCheck` is set and greater than zero, this check is delayed for the configured duration in seconds.
 
 This setting can be useful if internal networks block external DNS queries. For more information, check the [Traefik documentation](https://docs.traefik.io/https/acme/#dnschallenge) regarding this subject.
 
 ### Option `letsencrypt.resolvers`
 
-Manually set the DNS servers to use when performing the verification step. Useful for situations where internal DNS does not resolve to the same addresses as the public internet (e.g. on a LAN using a FQDN as part of hostnames). 
+Manually set the DNS servers to use when performing the verification step. Useful for situations where internal DNS does not resolve to the same addresses as the public internet (e.g. on a LAN using a FQDN as part of hostnames).
 
 For more information, see the [Traefik documentation](https://docs.traefik.io/https/acme/#resolvers) regarding this subject.
 
@@ -156,7 +156,7 @@ This image exposes two ports for HTTP(S) access. These are also configured withi
 
 ### EntryPoint `web`, port `80`
 
-Port 80 is used for HTTP access. 
+Port 80 is used for HTTP access.
 
 When using a supported Let's Encrypt provider (ie. Cloudflare) with DNS Challange you can also map this port to another, random port and let CloudFlare do the HTTP to HTTPS forwarding.
 

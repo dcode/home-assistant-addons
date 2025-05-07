@@ -13,7 +13,7 @@ arch:
 startup: once
 stage: stable
 boot: manual
-url: https://alxx.nl/home-assistant-addons/tree/master/rclone
+url: https://github.com/dcode/home-assistant-addons/tree/master/rclone
 hassio_role: default
 hassio_api: true
 map:

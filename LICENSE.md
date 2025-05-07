@@ -1,5 +1,6 @@
 MIT License
 
+Copyright (c) 2025 Derek Ditch
 Copyright (c) 2019-2020 Alex van den Hoogen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
