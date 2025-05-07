@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.7
+
+* 📈 Updated Home-Assistant addon-base image to 17.2.5
+
 ## 1.4.6
 
 * 🆕 Added newline between entries (#41 @SVNKoch)

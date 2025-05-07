@@ -1,5 +1,5 @@
 name: Ansible Vault
-version: 1.0.0
+version: 1.0.1
 slug: ansible-vault
 description: Decrypts files with Ansible Vault
 url: 'https://github.com/dcode/home-assistant-addons/tree/master/ansible-vault'

@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.11
+
+* 📈 Updated Home-Assistant addon-base image to 17.2.5
+
 ## 3.0.10
 
 * 📈 Updated Rclone to 1.59.2

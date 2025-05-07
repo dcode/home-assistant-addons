@@ -47,6 +47,16 @@ certificatesResolvers:
   {{- end }}
 {{- end }}
 
+{{ if and (has $options "plugins") (gt (len $options.plugins) 0) -}}
+experimental:
+  plugins:
+  {{- range $options.plugins }}
+    {{ .name }}:
+      moduleName: {{ .moduleName }}
+      version: {{ .version }}
+  {{- end }}
+{{- end }}
+
 providers:
   file:
     directory: "{{ $options.dynamic_configuration_path }}"
