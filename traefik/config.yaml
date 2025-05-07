@@ -10,6 +10,7 @@ arch:
   - armhf
   - armv7
   - i386
+image: ghcr.io/dcode/traefik-add-on
 startup: system
 init: false
 stage: stable
