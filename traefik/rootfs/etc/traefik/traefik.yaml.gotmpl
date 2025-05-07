@@ -52,7 +52,10 @@ experimental:
   plugins:
   {{- range $options.plugins }}
     {{ .name }}:
-      moduleName: {{ .moduleName }}
+      {{ if has . "enabled" -}}
+      enabled: {{ .enabled }}
+      {{- end }}
+      modulename: {{ .moduleName }}
       version: {{ .version }}
   {{- end }}
 {{- end }}
