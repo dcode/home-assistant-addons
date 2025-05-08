@@ -195,14 +195,14 @@ jobs:
           pwd;
           ls;
           echo ${{ needs.information.outputs.target }};
-          ls ${{ needs.information.outputs.target }};
+          ls ${{ needs.information.outputs.target }}/traefik;
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
         with:
           args: |
             --${{ matrix.architecture }} \
-            --target /data/${{ needs.information.outputs.target }} \
+            --target /data/${{ needs.information.outputs.target }}/traefik \
             --version edge \
             --no-latest \
             --image "${{ needs.information.outputs.slug }}/{arch}" \
