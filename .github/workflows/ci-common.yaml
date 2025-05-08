@@ -176,14 +176,14 @@ jobs:
 
       - name: Update build.yaml with dynamic build args
         run: |
-          echo "  BUILD_ARCH=${{ matrix.architecture }}" >> "${BUILD_YAML}"
-          echo "  BUILD_DATE=${{ steps.flags.outputs.date }}" >> "${BUILD_YAML}"
-          echo "  BUILD_DESCRIPTION=${{ needs.information.outputs.description }}" >> "${BUILD_YAML}"
-          echo "  BUILD_FROM=${{ steps.flags.outputs.from }}" >> "${BUILD_YAML}"
-          echo "  BUILD_NAME=${{ needs.information.outputs.name }}" >> "${BUILD_YAML}"
-          echo "  BUILD_REF=${{ github.sha }}" >> "${BUILD_YAML}"
-          echo "  BUILD_REPOSITORY=${{ github.repository }}" >> "${BUILD_YAML}"
-          echo "  BUILD_VERSION=edge" >> "${BUILD_YAML}"
+          echo "  BUILD_ARCH: ${{ matrix.architecture }}" >> "${BUILD_YAML}"
+          echo "  BUILD_DATE: ${{ steps.flags.outputs.date }}" >> "${BUILD_YAML}"
+          echo "  BUILD_DESCRIPTION: ${{ needs.information.outputs.description }}" >> "${BUILD_YAML}"
+          echo "  BUILD_FROM: ${{ steps.flags.outputs.from }}" >> "${BUILD_YAML}"
+          echo "  BUILD_NAME: ${{ needs.information.outputs.name }}" >> "${BUILD_YAML}"
+          echo "  BUILD_REF: ${{ github.sha }}" >> "${BUILD_YAML}"
+          echo "  BUILD_REPOSITORY: ${{ github.repository }}" >> "${BUILD_YAML}"
+          echo "  BUILD_VERSION: edge" >> "${BUILD_YAML}"
         env:
           BUILD_YAML: "./${{ needs.information.outputs.target }}/build.yaml"
 
