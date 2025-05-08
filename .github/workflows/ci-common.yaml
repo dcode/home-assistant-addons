@@ -133,6 +133,8 @@ jobs:
     strategy:
       matrix:
         architecture: ${{ fromJson(needs.information.outputs.architectures) }}
+    env:
+      BUILD_YAML: "/data/${{ needs.information.outputs.target }}/build.yaml"
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -184,14 +186,10 @@ jobs:
           echo "  BUILD_REF: ${{ github.sha }}" >> "${BUILD_YAML}"
           echo "  BUILD_REPOSITORY: ${{ github.repository }}" >> "${BUILD_YAML}"
           echo "  BUILD_VERSION: edge" >> "${BUILD_YAML}"
-        env:
-          BUILD_YAML: "/data/${{ needs.information.outputs.target }}/build.yaml"
 
       - name: Dump build.yaml
         run: |
           cat "${BUILD_YAML}"
-        env:
-          BUILD_YAML: "/data/${{ needs.information.outputs.target }}/build.yaml"
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
