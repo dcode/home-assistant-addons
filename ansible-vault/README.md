@@ -16,7 +16,7 @@ Ansible Vault is a an application that allows you to keep sensitive data such as
 
 ## Known issues and limitations
 
-* No third party password manager support
+- No third party password manager support
 
 ## Final notes
 

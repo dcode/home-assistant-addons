@@ -1,3 +1,4 @@
+---
 build_from:
   aarch64: ghcr.io/hassio-addons/addon-base-python/aarch64:16.1.3
   amd64: ghcr.io/hassio-addons/addon-base-python/amd64:16.1.3
@@ -6,4 +7,3 @@ build_from:
   i386: ghcr.io/hassio-addons/addon-base-python/i386:16.1.3
 args:
   "ANSIBLE_VERSION": "2.9.9"
-

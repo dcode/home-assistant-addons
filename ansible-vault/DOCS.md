@@ -6,7 +6,7 @@ Ansible Vault bundled as an Home Assistant add-on.
 
 Follow these steps to get the add-on installed on your system:
 
-1. Navigate in your Home Assistant frontend to __Supervisor -> Add-on Store__
+1. Navigate in your Home Assistant frontend to **Supervisor -> Add-on Store**
 2. Add this new repository by URL (`https://github.com/dcode/home-assistant-addons`)
 3. Find the "Ansible Vault" add-on and click it.
 4. Click on the "INSTALL" button
@@ -20,13 +20,13 @@ Ansible does not have an user interface and everything is done through a CLI. Ho
 First you will need to install Ansible. The simplest way to install Ansible is through Python:
 
 1. Install Python3:
-    * **Windows** `winget install python`
-    * **Ubuntu/Debian** `apt-get install python3`
-    * **MacOS** `brew install python`
+   - **Windows** `winget install python`
+   - **Ubuntu/Debian** `apt-get install python3`
+   - **MacOS** `brew install python`
 2. Install Pip3:
-    * **Windows** _Included in Python package_
-    * **Ubuntu/Debian** `apt-get install python3-pip`
-    * **MacOS** _Included in Python package_
+   - **Windows** _Included in Python package_
+   - **Ubuntu/Debian** `apt-get install python3-pip`
+   - **MacOS** _Included in Python package_
 3. Install Ansible: `python3 -m pip install ansible`
 
 > _**Note** You could also try Ansible within a Docker container_
@@ -69,12 +69,12 @@ password: mySuP3RS3CR3Tp455W0RD1337!!
 
 The log_level option controls the level of log output by the addon and can be changed to be more or less verbose, which might be useful when you are dealing with an unknown issue. Possible values are:
 
-* `trace`: Show every detail, like all called internal functions.
-* `debug`: Shows detailed debug information.
-* `info`: Normal (usually) interesting events.
-* `warning`: Exceptional occurrences that are not errors.
-* `error`: Runtime errors that do not require immediate action.
-* `fatal`: Something went terribly wrong. Add-on becomes unusable.
+- `trace`: Show every detail, like all called internal functions.
+- `debug`: Shows detailed debug information.
+- `info`: Normal (usually) interesting events.
+- `warning`: Exceptional occurrences that are not errors.
+- `error`: Runtime errors that do not require immediate action.
+- `fatal`: Something went terribly wrong. Add-on becomes unusable.
 
 ### Option `encrypted_file` (required)
 

@@ -20,7 +20,7 @@ Traefik is a modern HTTP reverse proxy and load balancer that makes deploying mi
 
 ## Known issues and limitations
 
-* Default port 80 can conflict with other ports
+- Default port 80 can conflict with other ports
 
 ## Final notes
 

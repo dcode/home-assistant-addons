@@ -6,7 +6,7 @@ Traefik bundled as an Home Assistant add-on.
 
 Follow these steps to get the add-on installed on your system:
 
-1. Navigate in your Home Assistant frontend to __Supervisor -> Add-on Store__
+1. Navigate in your Home Assistant frontend to **Supervisor -> Add-on Store**
 2. Add this new repository by URL (`https://github.com/dcode/home-assistant-addons`)
 3. Find the "Traefik" add-on and click it.
 4. Click on the "INSTALL" button
@@ -72,7 +72,7 @@ letsencrypt:
   provider: cloudflare
   delayBeforeCheck: 10
   resolvers:
-    - '1.1.1.1:53'
+    - "1.1.1.1:53"
 env_vars:
   - CF_DNS_API_TOKEN=YOUR-API-TOKEN-HERE
   - ANOTHER_ENV_VARIABLE=SOME-VALUE
@@ -88,7 +88,7 @@ dealing with an unknown issue. Possible values are:
 - `debug`: Shows detailed debug information.
 - `info`: Normal (usually) interesting events.
 - `warning`: Exceptional occurrences that are not errors.
-- `error`:  Runtime errors that do not require immediate action.
+- `error`: Runtime errors that do not require immediate action.
 - `fatal`: Something went terribly wrong. Add-on becomes unusable.
 
 Please note that each level automatically includes log messages from a
@@ -104,7 +104,7 @@ Whether to enable access logging to standard out. These logs will be shown in th
 
 Enables insecure forwarding headers. When this option is enabled, the forwarded headers (`X-Forwarded-*`) will not be replaced by Traefik headers. Only enable this option when you trust your forwarding proxy.
 
-> ___Note__ for Cloudflare `X-Forwarded-*` proxied headers to work, this must be enabled._
+> **\_Note** for Cloudflare `X-Forwarded-*` proxied headers to work, this must be enabled.\_
 
 ### Option `dynamic_configuration_path` (required)
 
@@ -124,9 +124,9 @@ Your personal e-mail that you want to use for Let's Encrypt.
 
 A challange type you want to use for Let's Encrypt. Valid options are:
 
-* `tlsChallenge`
-* `httpChallenge`
-* `dnsChallenge`
+- `tlsChallenge`
+- `httpChallenge`
+- `dnsChallenge`
 
 For more information on challange types and which one to choose, please see the [ACME section](https://docs.traefik.io/https/acme/) of the Treafik documentation regarding this subject.
 

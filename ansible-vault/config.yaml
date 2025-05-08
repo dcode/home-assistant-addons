@@ -1,8 +1,9 @@
+---
 name: Ansible Vault
 version: 1.0.1
 slug: ansible-vault
 description: Decrypts files with Ansible Vault
-url: 'https://github.com/dcode/home-assistant-addons/tree/master/ansible-vault'
+url: "https://github.com/dcode/home-assistant-addons/tree/master/ansible-vault"
 startup: once
 stage: deprecated
 arch:
@@ -13,14 +14,14 @@ arch:
   - i386
 boot: auto
 map:
-  - 'config:rw'
-  - 'share:rw'
-  - 'ssl:rw'
+  - "config:rw"
+  - "share:rw"
+  - "ssl:rw"
 options:
   log_level: info
   encrypted_file: /config/encrypted_secrets.yaml
   output_file: /config/secrets.yaml
-  password: ''
+  password: ""
 schema:
   log_level: list(trace|debug|info|notice|warning|error|fatal)
   encrypted_file: str

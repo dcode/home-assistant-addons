@@ -18,7 +18,7 @@ Rclone ("rsync for cloud storage") is a command line program to sync files and d
 
 ## Known issues and limitations
 
-* You will have to manually create a rclone config
+- You will have to manually create a rclone config
 
 ### Google Drive Root Folder ID
 

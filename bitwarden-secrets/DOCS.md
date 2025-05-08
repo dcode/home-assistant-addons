@@ -8,7 +8,7 @@ Easily manage your Home Assistant secrets from Bitwarden.
 
 Follow these steps to get the add-on installed on your system:
 
-1. Navigate in your Home Assistant frontend to __Supervisor -> Add-on Store__
+1. Navigate in your Home Assistant frontend to **Supervisor -> Add-on Store**
 2. Add this new repository by URL (`https://github.com/dcode/home-assistant-addons`)
 3. Find the "Bitwarden secrets for Home Assistant" add-on and click it.
 4. Click on the "INSTALL" button
@@ -25,10 +25,10 @@ You will need to have a Bitwarden account to use. It is also recommended that yo
 
 For every **Login** item the _Username_ and _Password_ fields are leveraged into secrets that are parsed into yaml. For instance:
 
-| Item | Username | Password |
-| ---- | -------- | -------- |
-| My Super Secret API Key |  | 1Wp08FwDFa4aEP39 |
-| MariaDB | mariadb_user | this-is-my-database-password! |
+| Item                    | Username     | Password                      |
+| ----------------------- | ------------ | ----------------------------- |
+| My Super Secret API Key |              | 1Wp08FwDFa4aEP39              |
+| MariaDB                 | mariadb_user | this-is-my-database-password! |
 
 is parsed into:
 
@@ -36,9 +36,9 @@ is parsed into:
 # Home Assistant secrets file
 # DO NOT MODIFY -- Managed by Bitwarden Secrets for Home Assistant add-on
 
-my_super_secret_api_key_password: '1Wp08FwDFa4aEP39'
-mariadb_username: 'mariadb_user'
-mariadb_password: 'this-is-my-database-password!'
+my_super_secret_api_key_password: "1Wp08FwDFa4aEP39"
+mariadb_username: "mariadb_user"
+mariadb_password: "this-is-my-database-password!"
 ```
 
 > _**NOTE** YAML formatting still applies!_
@@ -47,9 +47,9 @@ mariadb_password: 'this-is-my-database-password!'
 
 Custom fields are also supported. The field type "Hidden" and "Text" are treated equally and their text will be written. The "Boolean" Field Type will be written as `true` or `false`. Example:
 
-| Item | Text | Hidden | Boolean |
-| ---- | ---- | ------ | ------- |
-| Custom Fields | my text | secret text | ☑️ |
+| Item          | Text    | Hidden      | Boolean |
+| ------------- | ------- | ----------- | ------- |
+| Custom Fields | my text | secret text | ☑️      |
 
 is parsed into:
 
@@ -57,16 +57,17 @@ is parsed into:
 # Home Assistant secrets file
 # DO NOT MODIFY -- Managed by Bitwarden Secrets for Home Assistant add-on
 
-custom_fields_text: 'my text'
-custom_fields_hidden: 'secret text'
-custom_fields_boolean: 'true'
+custom_fields_text: "my text"
+custom_fields_hidden: "secret text"
+custom_fields_boolean: "true"
 ```
+
 > _**NOTE** The custom field type "Linked" is not supported yet._
 
 Besides creating a `secrets.yaml` file, you can also easily manage secret files. For every **Note** item in the Bitwarden vault, a secret file will be created from the _Name_ with the _Note contents_. For instance:
 
-| Item | Note contents (partial) |
-| ---- | ----------------------- |
+| Item                              | Note contents (partial)                                                          |
+| --------------------------------- | -------------------------------------------------------------------------------- |
 | google_assistant_service_key.json | `{"type": "service_account","project_id": "my-google-assistant-project-1273"...` |
 
 is parsed into `google_assistant_service_key.json` in your Home Assistant configuration directory with the contents:
@@ -93,7 +94,7 @@ is parsed into `google_assistant_service_key.json` in your Home Assistant config
 ```yaml
 log_level: info
 bitwarden:
-  server: 'http://a0d7b954-bitwarden:7277/'
+  server: "http://a0d7b954-bitwarden:7277/"
   username: homeassistant@localhost.lan
   password: homeassistant
   organization: Home Assistant
@@ -112,7 +113,7 @@ dealing with an unknown issue. Possible values are:
 - `debug`: Shows detailed debug information.
 - `info`: Normal (usually) interesting events.
 - `warning`: Exceptional occurrences that are not errors.
-- `error`:  Runtime errors that do not require immediate action.
+- `error`: Runtime errors that do not require immediate action.
 - `fatal`: Something went terribly wrong. Add-on becomes unusable.
 
 Please note that each level automatically includes log messages from a

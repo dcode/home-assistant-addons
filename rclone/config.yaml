@@ -1,3 +1,4 @@
+---
 name: Rclone
 version: 3.0.11
 slug: rclone
@@ -24,7 +25,7 @@ options:
   configuration_path: "/share/rclone/rclone.conf"
   local_retention_days: 60
   remotes:
-    - name: ''
+    - name: ""
       path: "/"
       retention_days: 14
 schema:
