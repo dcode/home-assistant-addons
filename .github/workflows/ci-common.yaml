@@ -189,7 +189,6 @@ jobs:
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
-        if: github.actor != github.repository_owner
         with:
           args: |
             --${{ matrix.architecture }} \
