@@ -134,7 +134,7 @@ jobs:
       matrix:
         architecture: ${{ fromJson(needs.information.outputs.architectures) }}
     env:
-      BUILD_YAML: "/data/${{ needs.information.outputs.target }}/build.yaml"
+      BUILD_YAML: "./${{ needs.information.outputs.target }}/build.yaml"
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -196,7 +196,7 @@ jobs:
         with:
           args: |
             --${{ matrix.architecture }} \
-            --target /data/${{ needs.information.outputs.target }} \
+            --target ./${{ needs.information.outputs.target }} \
             --version edge \
             --no-latest \
             --image "${{ needs.information.outputs.slug }}/{arch}" \
