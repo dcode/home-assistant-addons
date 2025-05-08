@@ -12,9 +12,9 @@ ARG BUILD_REF
 ARG BUILD_REPOSITORY
 ARG BUILD_VERSION
 
-RUN if [ "${BUILD_ARCH}" = "aarch64" ]; then BUILD_ARCH=arm64; \
-    elif [ "${BUILD_ARCH}" = "i386" ]; then BUILD_ARCH=386; \
-    elif [ "${BUILD_ARCH}" = "armhf" ]; then BUILD_ARCH=armv7; \
+RUN if [[ "${BUILD_ARCH}" == "aarch64" ]]; then BUILD_ARCH=arm64; \
+    elif [[ "${BUILD_ARCH}" == "i386" ]]; then BUILD_ARCH=386; \
+    elif [[ "${BUILD_ARCH}" == "armhf" ]]; then BUILD_ARCH=armv7; \
     fi && \
     apk add --no-cache nginx=~1.26 gomplate=~4.2 && \
     wget --quiet -O /tmp/traefik.tar.gz "https://github.com/traefik/traefik/releases/download/v${TRAEFIK_VERSION}/traefik_v${TRAEFIK_VERSION}_linux_${BUILD_ARCH}.tar.gz" && \
