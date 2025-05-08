@@ -36,11 +36,12 @@ fi
 
 function login {
     bashio::log.debug "Configuring Bitwarden server..."
-    bw config server ${BW_SERVER} &>/dev/null
+    bw config server "${BW_SERVER}" &>/dev/null
 
     bashio::log.debug "Logging into Bitwarden..."
-    SESSION=$(bw login --raw ${BW_USERNAME} ${BW_PASSWORD}) &>/dev/null
+    SESSION=$(bw login --raw "${BW_USERNAME}" "${BW_PASSWORD}") &>/dev/null
 
+    # shellcheck disable=SC2181
     if [ $? -eq 0 ]; then
         bashio::log.info "Bitwarden login succesful!"
         export BW_SESSION=${SESSION}
@@ -64,6 +65,7 @@ function logout {
 function login_check {
     bw login --check &>/dev/null
 
+    # shellcheck disable=SC2181
     if [ $? -eq 0 ]; then
         bashio::log.debug "Logged in to Bitwarden"
     else
@@ -76,6 +78,7 @@ function set_org_id {
     bashio::log.debug "Retrieving organization id..."
     ORG=$(bw get organization "${BW_ORGANIZATION}" | jq -r '.id') 2>/dev/null
 
+    # shellcheck disable=SC2181
     if [ $? -eq 0 ]; then
         bashio::log.debug "Retrieved organization id for ${BW_ORGANIZATION}"
         export BW_ORG_ID=${ORG}
@@ -87,16 +90,16 @@ function set_org_id {
 
 function generate_secrets {
     touch ${TEMP_SECRETS_FILE}
-    
+
     printf "# Home Assistant secrets file\n" >> ${TEMP_SECRETS_FILE}
     printf "# DO NOT MODIFY -- Managed by Bitwarden Secrets for Home Assistant add-on\n" >> ${TEMP_SECRETS_FILE}
 
-    for row in $(bw list items --organizationid ${BW_ORG_ID} | jq -c '.[] | select(.type == 1) | (.|@base64)'); do
+    for row in $(bw list items --organizationid "${BW_ORG_ID}" | jq -c '.[] | select(.type == 1) | (.|@base64)'); do
         printf "\n" >> ${TEMP_SECRETS_FILE}
-        
-        row_contents=$(echo ${row} | jq -r '@base64d')
-        name=$(echo $row_contents | jq -r '.name' | tr '?:&,%@-' ' ' | tr '[]{}#*!|> ' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')
-        
+
+        row_contents=$(echo "${row}" | jq -r '@base64d')
+        name=$(echo "$row_contents" | jq -r '.name' | tr '?:&,%@-' ' ' | tr '[]{}#*!|> ' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')
+
         write_field "${name}" "${row_contents}" ".login.username" "username"
         write_field "${name}" "${row_contents}" ".login.password" "password"
         write_field "${name}" "${row_contents}" ".notes" "notes"
@@ -109,16 +112,16 @@ function generate_secrets {
 }
 
 function generate_secret_files {
-    for row in $(bw list items --organizationid ${BW_ORG_ID} | jq -c '.[] | select(.type == 2) | [.name, (.notes|@base64)]')
+    for row in $(bw list items --organizationid "${BW_ORG_ID}" | jq -c '.[] | select(.type == 2) | [.name, (.notes|@base64)]')
     do
-        file=$(echo $row | jq -r '.[0]')
-        dirname=$(dirname $file)
-        basename=$(basename $file)
-        
-        mkdir -p /config/${dirname}
-        rm -f /config/${dirname}/${basename}
-        
-        echo ${row} | jq -r '.[1] | @base64d' > "/config/${dirname}/${basename}"
+        file=$(echo "$row" | jq -r '.[0]')
+        dirname=$(dirname "$file")
+        basename=$(basename "$file")
+
+        mkdir -p /config/"${dirname}"
+        rm -f /config/"${dirname}"/"${basename}"
+
+        echo "${row}" | jq -r '.[1] | @base64d' > "/config/${dirname}/${basename}"
         chmod go-wrx "/config/${dirname}/${basename}"
     done
 }
@@ -130,8 +133,8 @@ function write_field {
     suffix=${4}
 
     bashio::log.trace "Parsing row ${row_contents}"
-    field="$(echo ${row_contents} | jq -r ${field_name})"
-    
+    field="$(echo "${row_contents}" | jq -r "${field_name}")"
+
     if [ "${field}" != "null" ]; then
         bashio::log.debug "Writing ${secret_name}_${suffix} with ${field}"
         echo "${secret_name}_${suffix}: '${field}'" >> ${TEMP_SECRETS_FILE}
@@ -142,16 +145,16 @@ function write_uris {
     secret_name=${1}
     row_contents=${2}
 
-    if [ "$(echo ${row_contents} | jq -r '.login.uris | length')" -gt "0" ]; then
+    if [ "$(echo "${row_contents}" | jq -r '.login.uris | length')" -gt "0" ]; then
         i=1
-        
-        for uris in $(echo ${row_contents} | jq -c '.login.uris | .[] | @base64' ); do
-            uri=$(echo ${uris} | jq -r '@base64d' |  jq -r '.uri')
+
+        for uris in $(echo "${row_contents}" | jq -c '.login.uris | .[] | @base64' ); do
+            uri=$(echo "${uris}" | jq -r '@base64d' |  jq -r '.uri')
 
             if [ "${uri}" != "null" ]; then
                 bashio::log.debug "Writing ${secret_name}_uri_${i} with ${uri}"
                 echo "${secret_name}_uri_${i}: '${uri}'" >> ${TEMP_SECRETS_FILE}
-                
+
                 ((i=i+1))
             fi
         done
@@ -162,11 +165,11 @@ function write_custom_fields {
     secret_name=${1}
     row_contents=${2}
 
-    if [ "$(echo ${row_contents} | jq -r '.fields | length')" -gt "0" ]; then
-        for fields in $(echo ${row_contents} | jq -c '.fields | .[] | @base64'); do
-            field_contents=$(echo ${fields} | jq -r '@base64d')
-            field_name=$(echo ${field_contents} | jq -r '.name' | tr '?:&,%@-' ' ' | tr '[]{}#*!|> ' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')
-            field_value=$(echo ${field_contents} | jq -r '.value')
+    if [ "$(echo "${row_contents}" | jq -r '.fields | length')" -gt "0" ]; then
+        for fields in $(echo "${row_contents}" | jq -c '.fields | .[] | @base64'); do
+            field_contents=$(echo "${fields}" | jq -r '@base64d')
+            field_name=$(echo "${field_contents}" | jq -r '.name' | tr '?:&,%@-' ' ' | tr '[]{}#*!|> ' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')
+            field_value=$(echo "${field_contents}" | jq -r '.value')
 
             if [ "${field_name}" != "null" ] && [ "${field_value}" != "null" ]; then
                 bashio::log.debug "Writing ${secret_name}_${field_name} with ${field_value}"
@@ -185,9 +188,9 @@ login
 set_org_id
 
 while true; do
-    num_of_items=$(bw list items --organizationid ${BW_ORG_ID} | jq length)
+    num_of_items=$(bw list items --organizationid "${BW_ORG_ID}" | jq length)
 
-    if [ ${num_of_items} -gt 0 ]; then
+    if [ "${num_of_items}" -gt 0 ]; then
         bashio::log.debug "Generating ${SECRETS_FILE} file from login entries..."
         generate_secrets
         bashio::log.debug "Home Assistant secrets generated."
@@ -198,10 +201,10 @@ while true; do
             bashio::log.debug "No secrets changes detected."
         else
             bashio::log.info "Changes from Bitwarden detected, replacing ${SECRETS_FILE}..."
-            mv -f ${TEMP_SECRETS_FILE} ${SECRETS_FILE}
-            chmod go-wrx ${SECRETS_FILE}
+            mv -f ${TEMP_SECRETS_FILE} "${SECRETS_FILE}"
+            chmod go-wrx "${SECRETS_FILE}"
         fi
-        
+
         bashio::log.debug "Generating secret files from notes..."
         generate_secret_files
         bashio::log.info "Secret files created."
