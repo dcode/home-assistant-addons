@@ -1,8 +1,8 @@
 # Changelog
 
-## 4.2.4
+## 4.3.0
 
-* 🐞 Hotfix for update 4.2.3
+* 📈 Updated Traefik to 3.4.0 _(Breaking change)_
 
 ## 4.2.3
 
