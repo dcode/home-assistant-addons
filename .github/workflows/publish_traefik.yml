@@ -4,6 +4,7 @@ name: "Publish Traefik"
 env:
   ADD_ON_DIRECTORY: traefik
 
+# yamllint disable-line rule:truthy
 on:
   workflow_run:
     workflows: ["Build and test Traefik"]

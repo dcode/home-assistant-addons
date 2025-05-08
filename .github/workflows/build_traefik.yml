@@ -1,15 +1,15 @@
 ---
 name: Traefik CI
-
+# yamllint disable-line rule:truthy
 on:
   push:
     paths:
-      - 'traefik/**'
+      - "traefik/**"
     branches:
       - master
   pull_request:
     paths:
-      - 'traefik/**'
+      - "traefik/**"
     types:
       - opened
       - reopened

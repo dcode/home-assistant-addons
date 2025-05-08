@@ -1,6 +1,6 @@
 ---
 name: Traefik
-version: 4.3.0
+version: dev
 slug: traefik
 description: Traefik is a modern reverse proxy and load balancer that makes deploying microservices easy.
 arch:
@@ -12,8 +12,6 @@ arch:
 # image: ghcr.io/dcode/traefik-add-on
 startup: system
 init: false
-stage: stable
-boot: auto
 url: https://github.com/dcode/home-assistant-addons/tree/master/traefik
 ports:
   80/tcp: 80
@@ -23,11 +21,10 @@ ports_description:
   443/tcp: HTTPS
 ingress: true
 ingress_entry: dashboard/
-hassio_role: default
 hassio_api: true
 panel_icon: mdi:earth-arrow-right
 map:
-  - config
+  - homeassistant_config
   - share
   - ssl:rw
 options:
@@ -35,7 +32,7 @@ options:
   access_logs: false
   forwarded_headers_insecure: false
   http_sanitize_path: false
-  dynamic_configuration_path: "/config/traefik/"
+  dynamic_configuration_path: "/homeassistant/traefik/"
   letsencrypt:
     enabled: false
     resolvers: []

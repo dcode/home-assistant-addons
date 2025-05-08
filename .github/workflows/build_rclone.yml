@@ -1,18 +1,18 @@
 ---
-name: 'Build and test rclone'
+name: "Build and test rclone"
 
 env:
   ADD_ON_DIRECTORY: rclone
-
+# yamllint disable-line rule:truthy
 on:
   push:
     paths:
-      - 'rclone/**'
+      - "rclone/**"
     branches:
       - master
   pull_request:
     paths:
-      - 'rclone/**'
+      - "rclone/**"
 
 jobs:
   build:

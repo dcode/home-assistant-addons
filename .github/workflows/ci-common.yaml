@@ -1,6 +1,5 @@
 ---
 name: CI
-
 # yamllint disable-line rule:truthy
 on:
   workflow_call:
@@ -129,6 +128,7 @@ jobs:
       - lint-prettier
       - lint-shellcheck
       - lint-yamllint
+    # yamllint disable-line rule:line-length
     runs-on: ${{ contains(fromJson('["armhf", "armv7", "aarch64"]'), matrix.architecture) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       matrix:
