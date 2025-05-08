@@ -192,10 +192,12 @@ jobs:
         run: |
           ls "${BUILD_YAML}";
           cat "${BUILD_YAML}";
+          echo "pwd";
           pwd;
+          echo "--- ls ---"
           ls;
-          echo ${{ needs.information.outputs.target }};
-          ls ${{ needs.information.outputs.target }}/traefik;
+          echo "target: ${{ needs.information.outputs.target }}";
+          ls ${{ needs.information.outputs.target }};
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
