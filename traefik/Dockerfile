@@ -12,7 +12,8 @@ ARG BUILD_VERSION
 FROM "$BUILD_FROM"
 
 # shellcheck shell=dash
-RUN env && if [ "${BUILD_ARCH}" = "aarch64" ]; then \
+RUN env && echo "------" && cat build.yaml && echo "------" && \
+if [ "${BUILD_ARCH}" = "aarch64" ]; then \
   BUILD_ARCH=arm64; \
 elif [ "${BUILD_ARCH}" = "i386" ]; then \
   BUILD_ARCH=386; \
