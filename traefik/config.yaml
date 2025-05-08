@@ -1,16 +1,14 @@
 name: Traefik
 version: 4.3.0
 slug: traefik
-description: |
-  Traefik is a modern HTTP reverse proxy and load balancer that makes deploying
-  microservices easy.
+description: Traefik is a modern reverse proxy and load balancer that makes deploying microservices easy.
 arch:
   - aarch64
   - amd64
   - armhf
   - armv7
   - i386
-image: ghcr.io/dcode/traefik-add-on
+# image: ghcr.io/dcode/traefik-add-on
 startup: system
 init: false
 stage: stable
