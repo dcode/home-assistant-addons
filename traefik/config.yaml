@@ -1,5 +1,5 @@
 name: Traefik
-version: 4.2.3
+version: 4.2.4
 slug: traefik
 description: |
   Traefik is a modern HTTP reverse proxy and load balancer that makes deploying
@@ -35,6 +35,7 @@ options:
   log_level: info
   access_logs: false
   forwarded_headers_insecure: false
+  http_sanitize_path: false
   dynamic_configuration_path: "/config/traefik/"
   letsencrypt:
     enabled: false
@@ -45,6 +46,7 @@ schema:
   log_level: list(trace|debug|info|notice|warning|error|fatal)
   access_logs: bool
   forwarded_headers_insecure: bool
+  http_sanitize_path: bool
   dynamic_configuration_path: str
   letsencrypt:
     enabled: bool

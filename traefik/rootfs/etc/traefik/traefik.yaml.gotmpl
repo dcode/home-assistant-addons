@@ -16,6 +16,10 @@ entryPoints:
     forwardedHeaders:
       insecure: {{ $options.forwarded_headers_insecure }}
 {{- end }}
+{{- if has $options "http_sanitize_path" }}
+    http:
+      sanitizePath: {{ $options.http_sanitize_path }}
+{{- end }}
 
 api:
   dashboard: true
