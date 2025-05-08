@@ -196,6 +196,7 @@ jobs:
           pwd;
           echo "--- ls ---"
           ls;
+          echo "----"
           echo "target: ${{ needs.information.outputs.target }}";
           ls ${{ needs.information.outputs.target }};
 
@@ -204,7 +205,7 @@ jobs:
         with:
           args: |
             --${{ matrix.architecture }} \
-            --target /data/${{ needs.information.outputs.target }}/traefik \
+            --target /data/${{ needs.information.outputs.target }} \
             --version edge \
             --no-latest \
             --image "${{ needs.information.outputs.slug }}/{arch}" \
