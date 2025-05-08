@@ -16,9 +16,8 @@ on:
       - synchronize
   workflow_dispatch:
 
-env:
-  ADD_ON_DIRECTORY: traefik
-
 jobs:
   workflows:
     uses: dcode/home-assistant-addons/.github/workflows/ci-common.yaml@master
+    with:
+      addon_directory: "traefik"
