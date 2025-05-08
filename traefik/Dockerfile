@@ -20,7 +20,7 @@ elif [ "${BUILD_ARCH}" = "armhf" ]; then \
   BUILD_ARCH=armv7; \
 fi && \
   apk add --no-cache nginx=~1.26 gomplate=~4.2 && \
-  wget --verbose -O /tmp/traefik.tar.gz "https://github.com/traefik/traefik/releases/download/v${TRAEFIK_VERSION}/traefik_v${TRAEFIK_VERSION}_linux_${BUILD_ARCH}.tar.gz" && \
+  wget --progress=dot:giga --verbose -O /tmp/traefik.tar.gz "https://github.com/traefik/traefik/releases/download/v${TRAEFIK_VERSION}/traefik_v${TRAEFIK_VERSION}_linux_${BUILD_ARCH}.tar.gz" && \
   tar xzvf /tmp/traefik.tar.gz -C /usr/local/bin traefik && \
   chmod +x /usr/local/bin/traefik && \
   rm -f /tmp/*
