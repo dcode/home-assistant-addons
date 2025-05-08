@@ -199,6 +199,7 @@ jobs:
           echo "----"
           echo "target: ${{ needs.information.outputs.target }}";
           ls ${{ needs.information.outputs.target }};
+          set -x;
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
