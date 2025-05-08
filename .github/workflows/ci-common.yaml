@@ -176,23 +176,17 @@ jobs:
             exit 1
           fi
 
-      - name: Update build.yaml with dynamic build args
-        run: |
-          echo "  BUILD_ARCH: ${{ matrix.architecture }}" >> "${BUILD_YAML}"
-          echo "  BUILD_DATE: ${{ steps.flags.outputs.date }}" >> "${BUILD_YAML}"
-          echo "  BUILD_DESCRIPTION: ${{ needs.information.outputs.description }}" >> "${BUILD_YAML}"
-          echo "  BUILD_FROM: ${{ steps.flags.outputs.from }}" >> "${BUILD_YAML}"
-          echo "  BUILD_NAME: ${{ needs.information.outputs.name }}" >> "${BUILD_YAML}"
-          echo "  BUILD_REF: ${{ github.sha }}" >> "${BUILD_YAML}"
-          echo "  BUILD_REPOSITORY: ${{ github.repository }}" >> "${BUILD_YAML}"
-          echo "  BUILD_VERSION: edge" >> "${BUILD_YAML}"
-
-      - name: Dump build.yaml
-        run: |
-          cat "${BUILD_YAML}"
-
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
+        env:
+          BUILD_ARCH: "${{ matrix.architecture }}"
+          BUILD_DATE: "${{ steps.flags.outputs.date }}"
+          BUILD_DESCRIPTION: "${{ needs.information.outputs.description }}"
+          BUILD_FROM: "${{ steps.flags.outputs.from }}"
+          BUILD_NAME: "${{ needs.information.outputs.name }}"
+          BUILD_REF: "${{ github.sha }}"
+          BUILD_REPOSITORY: "${{ github.repository }}"
+          BUILD_VERSION: "edge"
         with:
           args: |
             --${{ matrix.architecture }} \
