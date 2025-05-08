@@ -1,9 +1,5 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/base:17.2.5
-
-# hadolint ignore=DL3006
-FROM "$BUILD_FROM"
-
 # Build arguments
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:17.2.5
 ARG BUILD_ARCH
 ARG BUILD_DATE
 ARG BUILD_DESCRIPTION
@@ -11,6 +7,9 @@ ARG BUILD_NAME
 ARG BUILD_REF
 ARG BUILD_REPOSITORY
 ARG BUILD_VERSION
+
+# hadolint ignore=DL3006
+FROM "$BUILD_FROM"
 
 # shellcheck shell=dash
 RUN if [ "${BUILD_ARCH}" = "aarch64" ]; then BUILD_ARCH=arm64; \
