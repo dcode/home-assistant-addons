@@ -205,7 +205,7 @@ jobs:
         with:
           args: |
             --${{ matrix.architecture }} \
-            --target /data/${{ needs.information.outputs.target }} \
+            --target ${{ needs.information.outputs.target }} \
             --version edge \
             --no-latest \
             --image "${{ needs.information.outputs.slug }}/{arch}" \
