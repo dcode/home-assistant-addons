@@ -21,4 +21,4 @@ env:
 
 jobs:
   workflows:
-    uses: dcode/workflows/.github/workflows/ci-common.yaml@master
+    uses: dcode/home-assistant-addons/.github/workflows/ci-common.yaml@master
