@@ -1,0 +1,7 @@
+---
+tabWidth: 2
+useTabs: false
+overrides:
+  - files: "*.yaml"
+    options:
+      printWidth: 120

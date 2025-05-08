@@ -1,11 +1,12 @@
-name: 'Publish Traefik'
+---
+name: "Publish Traefik"
 
 env:
   ADD_ON_DIRECTORY: traefik
 
 on:
   workflow_run:
-    workflows: ['Build and test Traefik']
+    workflows: ["Build and test Traefik"]
     types: [completed]
 
 jobs:
