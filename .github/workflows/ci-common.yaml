@@ -134,6 +134,7 @@ jobs:
       matrix:
         architecture: ${{ fromJson(needs.information.outputs.architectures) }}
     env:
+      BUILD_YAML: "./${{ needs.information.outputs.target }}/build.yaml}"
       TARGET: "./${{ needs.information.outputs.target }}"
 
     steps:
