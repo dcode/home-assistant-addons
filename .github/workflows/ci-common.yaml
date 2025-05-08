@@ -185,7 +185,13 @@ jobs:
           echo "  BUILD_REPOSITORY: ${{ github.repository }}" >> "${BUILD_YAML}"
           echo "  BUILD_VERSION: edge" >> "${BUILD_YAML}"
         env:
-          BUILD_YAML: "./${{ needs.information.outputs.target }}/build.yaml"
+          BUILD_YAML: "/data/${{ needs.information.outputs.target }}/build.yaml"
+
+      - name: Dump build.yaml
+        run: |
+          cat "${BUILD_YAML}"
+        env:
+          BUILD_YAML: "/data/${{ needs.information.outputs.target }}/build.yaml"
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
