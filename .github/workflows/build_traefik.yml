@@ -18,6 +18,6 @@ on:
 
 jobs:
   workflows:
-    uses: dcode/home-assistant-addons/.github/workflows/ci-common.yaml@master
+    uses: dcode/home-assistant-addons/.github/workflows/build-common.yaml@master
     with:
       addon_directory: "traefik"
