@@ -1,1 +1,2 @@
 rules "~MD024"
+git_recurse true

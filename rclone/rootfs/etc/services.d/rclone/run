@@ -14,7 +14,7 @@ for remote in ${REMOTES}; do
     remote_retention=$(bashio::jq "${remote}" ".retention_days")
 
     bashio::log.info "Starting remote copy for ${remote_name}..."
-    
+
     rclone --config ${RCLONE_CONFIG} \
         sync -v \
         --max-age "${remote_retention}d" \
@@ -22,6 +22,6 @@ for remote in ${REMOTES}; do
         --delete-excluded \
         --ignore-errors \
         --ignore-existing /backup/ "${remote_name}:${remote_path}"
-    
+
     bashio::log.info "Remote copy for ${remote_name} finished"
 done

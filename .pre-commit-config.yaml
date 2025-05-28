@@ -1,0 +1,43 @@
+---
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+  - repo: local
+    hooks:
+      - id: lint-hadolint
+        name: Lint Dockerfile
+        entry: hadolint
+        types: [dockerfile]
+        language: system
+      - id: lint-json
+        name: Lint JSON
+        entry: jq
+        args:
+          - .
+        types: [json]
+        language: system
+      - id: lint-shell
+        name: Shellcheck
+        entry: shellcheck
+        args:
+          - "-s"
+          - bash
+        types: [shell]
+        language: system
+      - id: lint-yaml
+        name: Lint YAML
+        entry: yamllint
+        types: [yaml]
+        language: system
+      - id: lint-prettier
+        name: Run Prettier
+        entry: prettier
+        args: ["--write", "--config", ".prettierrc.yaml"]
+        types: [file]
+        files: \.(yaml|json|js|html|md)$
+        language: system

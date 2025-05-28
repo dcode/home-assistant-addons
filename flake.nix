@@ -9,8 +9,13 @@
     {
       devShells.default = with pkgs; pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
-            yamllint
+            act
             pre-commit
+            shellcheck
+            yamllint
+            hadolint
+            nodePackages.prettier
+            jq
           ];
           shellHook = ''
           '';
@@ -18,9 +23,3 @@
       }
   );
 }
-
-
-
-
-
-

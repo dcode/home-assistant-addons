@@ -1,0 +1,155 @@
+---
+name: lint-all
+# yamllint disable-line rule:truthy
+on:
+  workflow_call:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  get_paths:
+    runs-on: ubuntu-latest
+    outputs:
+      paths: ${{steps.paths.outputs.paths}}
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          base: master
+          filters: |
+            ansible-vault:
+              - 'ansible-vault/**'
+            bitwarden-secrets:
+              - 'bitwarden-secrets/**'
+            rclone:
+              - 'rclone/**'
+            traefik:
+              - 'traefik/**'
+      - name: ℹ️ Compose changed paths
+        id: paths
+        run: |
+          set -euxo pipefail
+          declare -a path_array=()
+          declare -a json_paths=()
+
+          # yamllint disable-line rule:line-length
+          for changed_path in $(jq -r 'to_entries[] | select(.value==true) | .key' <<< '${{ toJson(steps.changes.outputs) }}'); do
+            path_array+=("$changed_path")
+          done
+
+          if [[ ${#path_array[@]} -eq 0 ]]; then
+            json_paths='["."]'
+          else
+            json_paths="[$(printf '"%s",' "${path_array[@]}" | sed 's/,$//')]"
+          fi
+          echo "paths=$json_paths" >> "$GITHUB_OUTPUT"
+
+  lint-addon:
+    needs:
+      - get_paths
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.get_paths.outputs.paths) }}
+    name: Lint Add-on
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run Add-on Lint
+        uses: frenck/action-addon-linter@v2.18.0
+        with:
+          community: true
+          path: "${{ matrix.target }}"
+
+  lint-hadolint:
+    name: Hadolint
+    needs:
+      - get_paths
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.get_paths.outputs.paths) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run Hadolint
+        uses: brpaz/hadolint-action@v1.5.0
+        with:
+          dockerfile: "./${{ matrix.target }}/Dockerfile"
+
+  lint-json:
+    name: JSON Lint
+    runs-on: ubuntu-latest
+    needs:
+      - get_paths
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.get_paths.outputs.paths) }}
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run JQ
+        run: |
+          shopt -s globstar
+          cat ${{ matrix.target }}/**/*.json | jq '.'
+
+  lint-shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    needs:
+      - get_paths
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.get_paths.outputs.paths) }}
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run Shellcheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        env:
+          SHELLCHECK_OPTS: -s bash
+        with:
+          scandir: ${{ matrix.target }}
+
+  lint-yamllint:
+    name: YAMLLint
+    runs-on: ubuntu-latest
+    needs:
+      - get_paths
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.get_paths.outputs.paths) }}
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run YAMLLint
+        uses: frenck/action-yamllint@v1.5
+        with:
+          path: ${{ matrix.target }}
+
+  lint-prettier:
+    name: Prettier
+    runs-on: ubuntu-latest
+    needs:
+      - get_paths
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.get_paths.outputs.paths) }}
+    steps:
+      - name: ⤵️ Check out code from GitHub
+        uses: actions/checkout@v4
+      - name: 🚀 Run Prettier
+        uses: creyD/prettier_action@v4.5
+        with:
+          working_directory: ${{ matrix.target }}
+          prettier_options: --write **/*.{json,js,md,yaml}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
