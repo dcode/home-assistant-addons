@@ -195,25 +195,29 @@ jobs:
       - name: Generate json configs
         shell: bash
         run: |
-          set -x
+          set -euxo pipefail
+          declare YQ_URL COSIGN_URL
           if [ "${BUILD_ARCH}" = "armhf" ] || [ "${BUILD_ARCH}" = "armv7" ]; then
-            wget -v -O /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_arm";
-            wget -v -O /tmp/cosign "https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_armhf";
+            YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_arm";
+            COSIGN_URL="https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_armhf";
           elif [ "${BUILD_ARCH}" = "aarch64" ]; then
-            wget -v -O /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_arm64";
-            wget -v -O /tmp/cosign "https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_aarch64";
+            YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_arm64";
+            COSIGN_URL="https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_aarch64";
           elif [ "${BUILD_ARCH}" = "i386" ]; then
-            wget -v -O /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_386";
-            wget -v -O /tmp/cosign "https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_i386";
+            YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_386";
+            COSIGN_URL="https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_i386";
           elif [ "${BUILD_ARCH}" = "amd64" ]; then
-            wget -v -O /tmp/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64";
-            wget -v -O /tmp/cosign "https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_amd64";
+            YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64";
+            COSIGN_URL="https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_amd64";
           else
             exit 1;
           fi
-          git config --global --add safe.directory "*"
+          curl --no-progress-meter -o /tmp/yq "${YQ_URL}"
+          curl --no-progress-meter -o /tmp/cosign "${COSIGN_URL}"
           chmod +x /tmp/yq
           chmod +x /tmp/cosign
+          git config --global --add safe.directory "*"
+
           mkdir -p /tmp/build_config
           for file in config build; do
               if [ -f "${TARGET}/${file}.yml" ]; then
@@ -227,23 +231,10 @@ jobs:
           echo "----- build.json -----"
           cat /tmp/build_config/build.json
 
-      - name: debug where we're at
-        shell: bash
-        run: |
-          ls "${BUILD_YAML}";
-          cat "${BUILD_YAML}";
-          echo "pwd";
-          pwd;
-          echo "--- ls ---"
-          ls;
-          echo "----"
-          echo "target: ${{ needs.information.outputs.target }}";
-          ls ${{ needs.information.outputs.target }};
-          set -x;
-
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
         with:
+          image: ${{ matrix.architecture }}
           args: |
             --${{ matrix.architecture }} \
             --target ${{ needs.information.outputs.target }} \
