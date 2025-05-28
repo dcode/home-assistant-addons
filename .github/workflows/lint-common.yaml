@@ -72,7 +72,7 @@ jobs:
       - name: Print files
         run: echo "${{ steps.ff.outputs.files }}"
       - name: 🚀 Run Hadolint
-        uses: dcode/hadolint-action@master
+        uses: hadolint/hadolint-action@d292784f8f3eacda47060b259a580467b0ba410c
         with:
           dockerfile: "${{ steps.ff.outputs.files }}"
 
