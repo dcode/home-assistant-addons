@@ -233,6 +233,15 @@ jobs:
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
+        env:
+            BUILD_ARCH: ${{ matrix.architecture }}
+            BUILD_DATE: ${{ steps.flags.outputs.date }}
+            BUILD_DESCRIPTION: ${{ needs.information.outputs.description }}
+            BUILD_FROM: ${{ steps.flags.outputs.from }}
+            BUILD_NAME: ${{ needs.information.outputs.name }}
+            BUILD_REF: ${{ github.sha }}
+            BUILD_REPOSITORY: ${{ github.repository }}
+            BUILD_VERSION: edge
         with:
           image: ${{ matrix.architecture }}
           args: |
