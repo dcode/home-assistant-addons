@@ -3,6 +3,7 @@ name: lint-all
 # yamllint disable-line rule:truthy
 on:
   workflow_call:
+  workflow_dispatch:
   push:
     branches:
       - master
