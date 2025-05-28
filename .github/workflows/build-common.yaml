@@ -127,7 +127,7 @@ jobs:
       - name: Install npm v8
         run: npm i -g npm@8
       - name: 🚀 Run Prettier
-        uses: creyD/prettier_action@v4.5
+        uses: dcode/prettier_action@master
         with:
           working_directory: ${{ needs.information.outputs.target }}
           prettier_options: --write **/*.{json,js,md,yaml}
