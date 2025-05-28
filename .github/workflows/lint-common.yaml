@@ -67,13 +67,13 @@ jobs:
         uses: jeertmans/filesfinder@latest
         id: ff
         with:
-          args: -d ${{ matrix.target }} --no-strip-prefix -r "^([Dd]ocker|[Cc]ontainer)[Ff]ile$"
+          args: -d ${{ matrix.target }} --no-strip-prefix -r "/([Dd]ocker|[Cc]ontainer)[Ff]ile$"
       - name: Print files
         run: echo "${{ steps.ff.outputs.files }}"
       - name: 🚀 Run Hadolint
         uses: brpaz/hadolint-action@v1.5.0
         with:
-          dockerfile: "${{ matrix.target }}/${{ steps.ff.outputs.files }}"
+          dockerfile: "${{ steps.ff.outputs.files }}"
 
   lint-json:
     name: JSON Lint
