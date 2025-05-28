@@ -255,6 +255,7 @@ jobs:
           BUILD_REF: ${{ github.sha }}
           BUILD_REPOSITORY: ${{ github.repository }}
           BUILD_VERSION: edge
+          __BASHIO_LOG_LEVEL_TRACE: trace
         with:
           image: ${{ matrix.architecture }}
           args: |
