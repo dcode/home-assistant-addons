@@ -206,7 +206,7 @@ jobs:
           echo "  BUILD_VERSION: edge" >> "${BUILD_YAML}"
 
       - name: Generate json configs
-        shell: bash
+        shell: /usr/bin/env bashio
         run: |
           set -euxo pipefail
           declare YQ_URL COSIGN_URL
@@ -231,30 +231,23 @@ jobs:
           chmod +x /tmp/cosign
           git config --global --add safe.directory "*"
 
-          mkdir -p /tmp/build_config
+          # overrides
           for file in config build; do
-              if [ -f "${TARGET}/${file}.yml" ]; then
-                  /tmp/yq e -N -M -o=json "${TARGET}/${file}.yml" > "/tmp/build_config/${file}.json"
-              elif [ -f "${TARGET}/${file}.yaml" ]; then
-                  /tmp/yq e -N -M -o=json "${TARGET}/${file}.yaml" > "/tmp/build_config/${file}.json"
-              fi
+            bashio::log.trace "Process ${file} files"
+            if [ -f "${TARGET}/${file}.yml" ]; then
+                /tmp/yq e -N -M -o=json "${TARGET}/${file}.yml" | tee "${TARGET}/${file}.json"
+            elif [ -f "${TARGET}/${file}.yaml" ]; then
+                /tmp/yq e -N -M -o=json "${TARGET}/${file}.yaml" | tee "${TARGET}/${file}.json"
+            fi
           done
-          echo "----- config.json -----"
-          cat /tmp/build_config/config.json
-          echo "----- build.json -----"
-          cat /tmp/build_config/build.json
+          bashio::log.trace "----- config.json -----"
+          bashio::log.trace "$(cat "${TARGET}/config.json")"
+          bashio::log.trace "----- build.json -----"
+          bashio::log.trace "$(cat "${TARGET}/build.json")"
 
       - name: 🏭 Build ${{ matrix.architecture }} add-on - Edge
         uses: home-assistant/builder@master
         env:
-          BUILD_ARCH: ${{ matrix.architecture }}
-          BUILD_DATE: ${{ steps.flags.outputs.date }}
-          BUILD_DESCRIPTION: ${{ needs.information.outputs.description }}
-          BUILD_FROM: ${{ steps.flags.outputs.from }}
-          BUILD_NAME: ${{ needs.information.outputs.name }}
-          BUILD_REF: ${{ github.sha }}
-          BUILD_REPOSITORY: ${{ github.repository }}
-          BUILD_VERSION: edge
           __BASHIO_LOG_LEVEL_TRACE: trace
         with:
           image: ${{ matrix.architecture }}
