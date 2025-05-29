@@ -9,7 +9,7 @@ arch:
   - armhf
   - armv7
   - i386
-image: "ghcr.io/dcode/addon-traefik-{arch}"
+image: "ghcr.io/dcode/addon-traefik"
 startup: system
 init: false
 url: https://github.com/dcode/home-assistant-addons/tree/master/traefik
