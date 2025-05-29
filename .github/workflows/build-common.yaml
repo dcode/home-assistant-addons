@@ -151,7 +151,7 @@ jobs:
       BASHIO_VERSION: "v0.17.0"
       TARGET: "./${{ needs.information.outputs.target }}"
       BUILD_ARCH: "${{ matrix.architecture }}"
-      YQ_VERSION: "v4.13.2"
+      YQ_VERSION: "v4.45.4"
       COSIGN_VERSION: "2.4.3"
 
     steps:
@@ -251,8 +251,8 @@ jobs:
           curl --no-progress-meter -o /tmp/cosign "${COSIGN_URL}"
           chmod +x /tmp/yq
           chmod +x /tmp/cosign
-          git config --global --add safe.directory "*"
           chmod 755 "${TARGET}"
+          touch "${TARGET}/foo"
 
           bashio::log.trace "downloaded tools: $(echo; ls -la /tmp/{yq,cosign})"
           bashio::log.trace "pwd: $(pwd)"
