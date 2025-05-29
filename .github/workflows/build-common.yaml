@@ -232,6 +232,10 @@ jobs:
 
           bashio::log.level trace
 
+          bashio::log.trace "pwd: $(pwd)"
+          bashio::log.trace "TARGET: ${TARGET}"
+          bashio::log.trace "build.yaml: $(cat ${TARGET}/build.yaml)"
+
           if [ "${BUILD_ARCH}" = "armhf" ] || [ "${BUILD_ARCH}" = "armv7" ]; then
             YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_arm";
             COSIGN_URL="https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_armhf";
