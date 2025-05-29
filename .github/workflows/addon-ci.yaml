@@ -162,6 +162,37 @@ jobs:
             echo "::error ::Could not determine platform for architecture ${{ matrix.architecture }}"
             exit 1
           fi
+      - name: Compose build args
+        id: buildargs
+        run: |
+          set -eo pipefail
+
+          COMBINED_ARGS_TEMP_FILE=$(mktemp)
+          # Ensure cleanup on exit, even if script fails
+          trap 'rm -f "$COMBINED_ARGS_TEMP_FILE"' EXIT
+
+          {
+            # Part 1: Args from build.yaml (e.g., needs.information.outputs.build)
+            # yq extracts the .args map, formats as 'key: value' lines, then sed converts to 'key=value'.
+            # If '.args' is not present or empty in the build YAML, this command sequence produces no output and exits cleanly.
+            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ needs.information.outputs.build }}" | sed -r 's#: #=#'
+
+            # Part 2: Static args
+            # Each echo adds a KEY=VALUE pair followed by a newline.
+            echo "BUILD_ARCH=${{ matrix.architecture }}"
+            echo "BUILD_DATE=${{ steps.flags.outputs.date }}"
+            echo "BUILD_DESCRIPTION=${{ needs.information.outputs.description }}"
+            echo "BUILD_FROM=${{ steps.flags.outputs.from }}"
+            echo "BUILD_NAME=${{ needs.information.outputs.name }}"
+            echo "BUILD_REF=${{ github.sha }}"
+            echo "BUILD_REPOSITORY=${{ github.repository }}"
+            echo "BUILD_VERSION=edge"
+          } > "$COMBINED_ARGS_TEMP_FILE"
+
+          echo -n "args=" >> "$GITHUB_OUTPUT"
+          # Filter out any blank lines from the final list of arguments
+          awk 'NF' "$COMBINED_ARGS_TEMP_FILE" >> "$GITHUB_OUTPUT"
+
       - name: ⤵️ Download base image
         if: steps.flags.outputs.from != 'null'
         run: docker pull "${{ steps.flags.outputs.from }}"
@@ -176,15 +207,8 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:edge
           cache-to: type=local,mode=max,dest=/tmp/.docker-cache-new
           platforms: ${{ steps.flags.outputs.platform }}
-          build-args: |
-            BUILD_ARCH=${{ matrix.architecture }}
-            BUILD_DATE=${{ steps.flags.outputs.date }}
-            BUILD_DESCRIPTION=${{ needs.information.outputs.description }}
-            BUILD_FROM=${{ steps.flags.outputs.from }}
-            BUILD_NAME=${{ needs.information.outputs.name }}
-            BUILD_REF=${{ github.sha }}
-            BUILD_REPOSITORY=${{ github.repository }}
-            BUILD_VERSION=edge
+          build-args: ${{ steps.buildargs.outputs.args }}
+
       # This ugly bit is necessary, or our cache will grow forever...
       # Well until we hit GitHub's limit of 5GB :)
       # https://github.com/docker/build-push-action/issues/252
