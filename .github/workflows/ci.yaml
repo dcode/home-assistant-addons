@@ -13,4 +13,4 @@ on:
 
 jobs:
   workflows:
-    uses: dcode/home-assitant-addons/.github/workflows/addon-ci.yaml@main
+    uses: dcode/home-assistant-addons/.github/workflows/addon-ci.yaml@master
