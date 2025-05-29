@@ -261,9 +261,14 @@ jobs:
           for file in config build; do
             bashio::log.trace "Process ${file} files"
             if [ -f "${TARGET}/${file}.yml" ]; then
-                /tmp/yq e -N -M -o=json "${TARGET}/${file}.yml" | tee "${TARGET}/${file}.json"
+              bashio::log.trace "${file}.yml: $(cat "${TARGET}/${file}.yml")"
+              bashio::log.trace "yq output: $(/tmp/yq e -N -M -o=json "${TARGET}/${file}.yml")"
+              /tmp/yq e -N -M -o=json "${TARGET}/${file}.yml" | tee "${TARGET}/${file}.json"
+
             elif [ -f "${TARGET}/${file}.yaml" ]; then
-                /tmp/yq e -N -M -o=json "${TARGET}/${file}.yaml" | tee "${TARGET}/${file}.json"
+              bashio::log.trace "${file}.yaml: $(cat "${TARGET}/${file}.yaml")"
+              bashio::log.trace "yq output: $(/tmp/yq e -N -M -o=json "${TARGET}/${file}.yaml")"
+              /tmp/yq e -N -M -o=json "${TARGET}/${file}.yaml" | tee "${TARGET}/${file}.json"
             fi
           done
           bashio::log.trace "----- config.json -----"
