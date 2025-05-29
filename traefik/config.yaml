@@ -1,7 +1,7 @@
 ---
 name: Traefik
 version: dev
-slug: traefik-add-on
+slug: addon-traefik
 description: Traefik is a modern reverse proxy and load balancer that makes deploying microservices easy.
 arch:
   - aarch64
@@ -9,7 +9,7 @@ arch:
   - armhf
   - armv7
   - i386
-# image: ghcr.io/dcode/traefik-add-on
+image: "ghcr.io/dcode/addon-traefik-{arch}"
 startup: system
 init: false
 url: https://github.com/dcode/home-assistant-addons/tree/master/traefik
