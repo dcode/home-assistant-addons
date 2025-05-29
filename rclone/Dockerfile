@@ -1,5 +1,9 @@
 # Build arguments
 ARG BUILD_FROM=ghcr.io/hassio-addons/base:17.2.5
+
+# hadolint ignore=DL3006
+FROM $BUILD_FROM
+
 ARG BUILD_ARCH
 ARG BUILD_DATE
 ARG BUILD_DESCRIPTION
@@ -8,9 +12,6 @@ ARG BUILD_REF
 ARG BUILD_REPOSITORY
 ARG BUILD_VERSION
 ARG RCLONE_VERSION
-
-# hadolint ignore=DL3006
-FROM $BUILD_FROM
 
 RUN if [ "${BUILD_ARCH}" = "aarch64" ]; then BUILD_ARCH=arm64; \
   elif [ "${BUILD_ARCH}" = "i386" ]; then BUILD_ARCH=386; \
