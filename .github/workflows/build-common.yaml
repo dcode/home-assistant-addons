@@ -213,8 +213,8 @@ jobs:
           declare YQ_URL COSIGN_URL
 
           curl -J -L -o /tmp/bashio.tar.gz \
-                  "https://github.com/hassio-addons/bashio/archive/${BASHIO_VERSION}.tar.gz" \
-          mkdir /tmp/bashio \
+                  "https://github.com/hassio-addons/bashio/archive/${BASHIO_VERSION}.tar.gz"
+          mkdir -p /tmp/bashio
           tar zxvf /tmp/bashio.tar.gz --strip 1 -C /tmp/bashio
           source "/tmp/bashio/lib/bashio"
 
