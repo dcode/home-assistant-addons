@@ -206,8 +206,10 @@ jobs:
           echo "  BUILD_VERSION: edge" >> "${BUILD_YAML}"
 
       - name: Generate json configs
-        shell: /usr/bin/env bashio
+        shell: bash
         run: |
+          source "/usr/lib/bashio/bashio"
+
           set -euxo pipefail
           declare YQ_URL COSIGN_URL
           if [ "${BUILD_ARCH}" = "armhf" ] || [ "${BUILD_ARCH}" = "armv7" ]; then
