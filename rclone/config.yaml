@@ -1,6 +1,6 @@
 ---
 name: Rclone
-version: 3.0.11
+version: dev
 slug: addon-rclone
 description: Rclone is a command line program to sync files and directories to and from various providers.
 arch:
@@ -10,7 +10,6 @@ arch:
   - armv7
   - i386
 startup: once
-stage: stable
 boot: manual
 url: https://github.com/dcode/home-assistant-addons/tree/master/rclone
 hassio_role: default
