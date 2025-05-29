@@ -209,7 +209,7 @@ jobs:
       - name: Generate json configs
         shell: bash
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           declare YQ_URL COSIGN_URL
           set -o errexit  # Exit script when a command exits with non-zero status
           set -o errtrace # Exit on error inside any functions or sub-shells
@@ -232,10 +232,6 @@ jobs:
 
           bashio::log.level trace
 
-          bashio::log.trace "pwd: $(pwd)"
-          bashio::log.trace "TARGET: ${TARGET}"
-          bashio::log.trace "build.yaml: $(cat ${TARGET}/build.yaml)"
-
           if [ "${BUILD_ARCH}" = "armhf" ] || [ "${BUILD_ARCH}" = "armv7" ]; then
             YQ_URL="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_arm";
             COSIGN_URL="https://github.com/home-assistant/cosign/releases/download/${COSIGN_VERSION}/cosign_armhf";
@@ -256,6 +252,11 @@ jobs:
           chmod +x /tmp/yq
           chmod +x /tmp/cosign
           git config --global --add safe.directory "*"
+
+          bashio::log.trace "downloaded tools: $(echo; ls -la /tmp/{yq,cosign})"
+          bashio::log.trace "pwd: $(pwd)"
+          bashio::log.trace "TARGET: ${TARGET}"
+          bashio::log.trace "ls TARGET: $(ls -la ${TARGET})"
 
           # overrides
           for file in config build; do
