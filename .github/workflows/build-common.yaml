@@ -211,12 +211,24 @@ jobs:
         run: |
           set -euxo pipefail
           declare YQ_URL COSIGN_URL
+          set -o errexit  # Exit script when a command exits with non-zero status
+          set -o errtrace # Exit on error inside any functions or sub-shells
+          set -o nounset  # Exit script on use of an undefined variable
+          set -o pipefail # Return exit status of the last command in the pipe that failed
+
+          export __BASHIO_BIN
+          export __BASHIO_LIB_DIR
 
           curl -J -L -o /tmp/bashio.tar.gz \
                   "https://github.com/hassio-addons/bashio/archive/${BASHIO_VERSION}.tar.gz"
           mkdir -p /tmp/bashio
           tar zxvf /tmp/bashio.tar.gz --strip 1 -C /tmp/bashio
-          source "/tmp/bashio/lib/bashio"
+
+          __BASHIO_BIN=$(readlink -f "/tmp/bashio/lib/bashio")
+          __BASHIO_LIB_DIR=$(dirname "${__BASHIO_BIN}")
+          # Include Bashio library
+          # shellcheck source=lib/bashio.sh
+          source "${__BASHIO_LIB_DIR}/bashio.sh"
 
           bashio::log.level trace
 
