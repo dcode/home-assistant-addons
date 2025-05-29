@@ -3,8 +3,9 @@ name: Traefik CI
 # yamllint disable-line rule:truthy
 on:
   push:
-    paths:
-      - "traefik/**"
+    # temporary
+    # paths:
+    #   - "traefik/**"
     branches:
       - master
   pull_request:
