@@ -12,7 +12,7 @@ arch:
 startup: application
 stage: stable
 boot: auto
-url: https://github.com/dcode/home-assistant-addons/tree/master/bitwarden-secrets
+url: https://github.com/dcode/home-assistant-addons/tree/main/bitwarden-secrets
 hassio_role: default
 hassio_api: true
 map:

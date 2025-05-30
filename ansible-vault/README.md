@@ -8,7 +8,7 @@ Ansible Vault bundled as an Home Assistant add-on.
 ![armv7-shield](https://img.shields.io/badge/armv7-yes-green)
 ![i386-shield](https://img.shields.io/badge/i386-yes-green)
 
-> _**NOTE** This add-on is deprecated and will not be updated. Please use [Bitwarden secrets for Home Assistant](https://alxx.nl/home-assistant-addons/tree/master/bitwarden-secrets) instead._
+> _**NOTE** This add-on is deprecated and will not be updated. Please use [Bitwarden secrets for Home Assistant](https://github.com/dcode/home-assistant-addons/tree/master/bitwarden-secrets) instead._
 
 ## About
 

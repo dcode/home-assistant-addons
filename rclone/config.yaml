@@ -11,7 +11,7 @@ arch:
   - i386
 startup: once
 boot: manual
-url: https://github.com/dcode/home-assistant-addons/tree/master/rclone
+url: https://github.com/dcode/home-assistant-addons/tree/main/rclone
 hassio_api: true
 map:
   - backup:rw
