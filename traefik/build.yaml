@@ -18,4 +18,4 @@ labels:
   org.opencontainers.image.source: "https://github.com/dcode/home-assistant-addons"
   org.opencontainers.image.documentation: "https://github.com/dcode/home-assistant-addons/blob/master/traefik/README.md"
 args:
-  TRAEFIK_VERSION: 3.4.0
+  TRAEFIK_VERSION: 3.4.1
