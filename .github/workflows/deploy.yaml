@@ -14,6 +14,6 @@ on:
 
 jobs:
   workflows:
-    uses: dcode/workflows/.github/workflows/addon-deploy.yaml@main
+    uses: dcode/home-assistant-addons/.github/workflows/addon-deploy.yaml@main
     secrets:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
