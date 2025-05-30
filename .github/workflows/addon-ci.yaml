@@ -192,7 +192,6 @@ jobs:
           echo -n "args=" >> "$GITHUB_OUTPUT"
           # Filter out any blank lines from the final list of arguments
           awk 'NF' "$COMBINED_ARGS_TEMP_FILE" >> "$GITHUB_OUTPUT"
-
       - name: ⤵️ Download base image
         if: steps.flags.outputs.from != 'null'
         run: docker pull "${{ steps.flags.outputs.from }}"
