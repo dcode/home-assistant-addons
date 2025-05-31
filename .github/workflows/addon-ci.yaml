@@ -82,6 +82,19 @@ jobs:
             echo "changed=false" | tee "$GITHUB_OUTPUT"; # Explicitly set changed to false
             echo "changed_addons=[]" | tee "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
           fi
+  debug:
+    name: Debug the selected addon job values
+    runs-on: ubuntu-latest
+    needs:
+      - init
+    steps:
+      - name: Dump init context
+        run: |
+          echo "All Addons: ${{ needs.init.outputs.addons }}"
+          echo "Changed Addons: ${{ needs.init.outputs.changed_addons }}"
+          echo "Changed: ${{ needs.init.outputs.changed }}"
+          echo "Tasked Addons ${{ inputs.addon && fromJson(format('["{0}"]', inputs.addon)) || (needs.init.outputs.changed == 'true' && fromJson(needs.init.outputs.changed_addons)) || (needs.init.outputs.addons && fromJson(needs.init.outputs.addons)) || fromJson('[]') }}"
+
   information:
     name: Gather add-on information for selected add-ons
     runs-on: ubuntu-latest
