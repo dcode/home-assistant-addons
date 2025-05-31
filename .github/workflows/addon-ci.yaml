@@ -44,7 +44,7 @@ jobs:
       - name: Get changed add-ons
         id: changed_addons
         run: |
-          declare -a changed_addons
+          declare -a changed_addons_list  # Renamed for clarity and consistency
           declare -a all_addons
 
           for addon in ${{ steps.addons.outputs.addons }}; do
@@ -56,8 +56,8 @@ jobs:
             if [[ "${{ steps.changed_files.outcome == 'success' && steps.changed_files.outputs.all || '' }}" =~ $addon ]]; then
               for file in ${{ env.MONITORED_FILES }}; do
                   if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
-                    if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
-                      changed_addons+=("\"${addon}\",");
+                    if [[ ! "${changed_addons_list[@]}" =~ $addon ]]; then # Use renamed variable
+                      changed_addons_list+=("\"${addon}\","); # Use renamed variable
                     fi
                   fi
               done
@@ -73,7 +73,7 @@ jobs:
           fi
 
           # Prepare JSON array string for changed addons and set 'changed' flag
-          changed_addons_json_string=$(echo "${changed_addons_array[@]}" | sed 's/,$//')
+          changed_addons_json_string=$(echo "${changed_addons_list[@]}" | sed 's/,$//') # Use renamed variable
           if [[ -n "${changed_addons_json_string}" ]]; then
             echo "Changed add-ons: [${changed_addons_json_string}]";
             echo "changed=true" | tee -a "$GITHUB_OUTPUT";
@@ -148,8 +148,16 @@ jobs:
               all_targets_arr+=("$(jq -cn --arg s "$addon_path" '$s')")
               all_names_arr+=("$(jq -cn --arg s "$(yq eval '.name' "$config_file")" '$s')")
               all_descriptions_arr+=("$(jq -cn --arg s "$(yq eval '.description' "$config_file")" '$s')")
+
               # .arch is an array in yaml, to_json converts it to a JSON array string e.g. "[\"amd64\",\"armv7\"]"
-              all_architectures_arr+=("$(yq eval '.arch | to_json' "$config_file" | jq -c .)")
+              # Default to "[]" (a string containing an empty JSON array) if .arch is null or yq fails.
+              # Then pipe to jq -c . to ensure it's compact.
+              arch_json_from_yq=$(yq eval '.arch | to_json // "[]"' "$config_file")
+              compact_arch_json=$(echo "$arch_json_from_yq" | jq -c '.')
+              if [[ -z "$compact_arch_json" ]] || [[ "$compact_arch_json" == "null" ]]; then # Handle empty or literal null string from jq -c . if input was truly problematic
+                compact_arch_json="[]" # Ensure it's a valid empty JSON array string
+              fi
+              all_architectures_arr+=("$compact_arch_json")
               all_build_files_arr+=("$(jq -cn --arg s "$build_file_path_convention" '$s')")
               # all_base_image_signers_arr+=("$(jq -cn --arg s "signer_for_${final_slug}" '$s')") # Placeholder
             done
