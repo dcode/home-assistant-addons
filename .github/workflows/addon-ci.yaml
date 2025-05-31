@@ -102,33 +102,67 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - init
-    strategy:
-      matrix:
-        addon: ${{ inputs.addon && fromJson(format('["{0}"]', inputs.addon)) || (needs.init.outputs.changed == 'true' && fromJson(needs.init.outputs.changed_addons)) || (needs.init.outputs.addons && fromJson(needs.init.outputs.addons)) || fromJson('[]') }}
     outputs:
-      architectures: ${{ steps.information.outputs.architectures }}
-      base_image_signer: ${{ steps.information.outputs.codenotary_base_image }}
-      build: ${{ steps.information.outputs.build }}
-      description: ${{ steps.information.outputs.description }}
-      name: ${{ steps.information.outputs.name }}
-      slug: ${{ steps.override.outputs.slug }}
-      target: ${{ steps.information.outputs.target }}
+      # These will be JSON arrays of strings. e.g., targets_list_json will be '["./addon1", "./addon2"]'
+      # architectures_list_json will be an array of JSON strings, e.g., '["[\"amd64\",\"armv7\"]", "[\"aarch64\"]"]'
+      architectures_list_json: ${{ steps.collect_info.outputs.architectures_list_json }}
+      # base_image_signers_list_json: ${{ steps.collect_info.outputs.base_image_signers_list_json }} # Placeholder, not fully implemented
+      build_files_list_json: ${{ steps.collect_info.outputs.build_files_list_json }}
+      descriptions_list_json: ${{ steps.collect_info.outputs.descriptions_list_json }}
+      names_list_json: ${{ steps.collect_info.outputs.names_list_json }}
+      slugs_list_json: ${{ steps.collect_info.outputs.slugs_list_json }}
+      targets_list_json: ${{ steps.collect_info.outputs.targets_list_json }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
-      - name: 🚀 Run add-on information action
-        id: information
-        uses: frenck/action-addon-information@v1.4.2
-        with:
-          path: "./${{matrix.addon}}"
-      - name: 🚀 Process possible slug override
-        id: override
+
+      - name: Determine addons to process and collect information
+        id: collect_info
         run: |
-          slug="${{ steps.information.outputs.slug }}"
-          if [[ ! -z "${{ inputs.slug }}" ]]; then
-            slug="${{ inputs.slug }}"
+          tasked_addons_json_array_string='${{ inputs.addon && format('["{0}"]', inputs.addon) || (needs.init.outputs.changed == 'true' && needs.init.outputs.changed_addons) || (needs.init.outputs.addons && needs.init.outputs.addons) || '[]' }}'
+
+          echo "Tasked addons JSON string: $tasked_addons_json_array_string"
+          mapfile -t addons_to_process < <(echo "$tasked_addons_json_array_string" | jq -r '.[]')
+
+          declare -a all_slugs_arr all_targets_arr all_names_arr all_descriptions_arr all_architectures_arr all_build_files_arr # all_base_image_signers_arr
+
+          if [ ${#addons_to_process[@]} -eq 0 ]; then
+            echo "No addons to process."
+          else
+            for addon_slug_from_init in "${addons_to_process[@]}"; do
+              echo "Processing addon: $addon_slug_from_init"
+              addon_path="./$addon_slug_from_init"
+              config_file="$addon_path/config.yaml"
+              build_file_path_convention="$addon_path/build.yaml"
+
+              if [ ! -f "$config_file" ]; then
+                echo "::warning::Config file $config_file not found for addon $addon_slug_from_init. Skipping."
+                continue
+              fi
+
+              current_slug_from_config=$(yq eval '.slug' "$config_file")
+              # Use inputs.slug to override for all, otherwise use slug from config
+              final_slug="${{ inputs.slug || '$current_slug_from_config' }}"
+
+              all_slugs_arr+=("$(jq -n --arg s "$final_slug" '$s')")
+              all_targets_arr+=("$(jq -n --arg s "$addon_path" '$s')")
+              all_names_arr+=("$(jq -n --arg s "$(yq eval '.name' "$config_file")" '$s')")
+              all_descriptions_arr+=("$(jq -n --arg s "$(yq eval '.description' "$config_file")" '$s')")
+              # .arch is an array in yaml, to_json converts it to a JSON array string e.g. "[\"amd64\",\"armv7\"]"
+              all_architectures_arr+=("$(yq eval '.arch | to_json' "$config_file")")
+              all_build_files_arr+=("$(jq -n --arg s "$build_file_path_convention" '$s')")
+              # all_base_image_signers_arr+=("$(jq -n --arg s "signer_for_${final_slug}" '$s')") # Placeholder
+            done
           fi
-          echo "slug=$slug" | tee -a "$GITHUB_OUTPUT"
+
+          # Output each collected list as a JSON array string
+          echo "slugs_list_json=$(IFS=,; echo "[${all_slugs_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "targets_list_json=$(IFS=,; echo "[${all_targets_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "names_list_json=$(IFS=,; echo "[${all_names_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "descriptions_list_json=$(IFS=,; echo "[${all_descriptions_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "architectures_list_json=$(IFS=,; echo "[${all_architectures_arr[*]}]")" | tee -a "$GITHUB_OUTPUT" # This is an array of JSON strings
+          echo "build_files_list_json=$(IFS=,; echo "[${all_build_files_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          # echo "base_image_signers_list_json=$(IFS=,; echo "[${all_base_image_signers_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
 
   lint-addon:
     name: Lint Add-on
@@ -138,7 +172,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_path: ${{ needs.information.outputs.target }}
+        target_path: ${{ fromJson(needs.information.outputs.targets_list_json) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -156,7 +190,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_path: ${{ needs.information.outputs.target }}
+        target_path: ${{ fromJson(needs.information.outputs.targets_list_json) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -173,7 +207,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_path: ${{ needs.information.outputs.target }}
+        target_path: ${{ fromJson(needs.information.outputs.targets_list_json) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -195,7 +229,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_path: ${{ needs.information.outputs.target }}
+        target_path: ${{ fromJson(needs.information.outputs.targets_list_json) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -214,7 +248,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_path: ${{ needs.information.outputs.target }}
+        target_path: ${{ fromJson(needs.information.outputs.targets_list_json) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -231,7 +265,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_path: ${{ needs.information.outputs.target }}
+        target_path: ${{ fromJson(needs.information.outputs.targets_list_json) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -253,34 +287,25 @@ jobs:
         run: |
           final_matrix_array="[]"
 
-          # Get outputs as JSON strings to handle both scalar and array cases from the 'information' job
-          slug_output_json='${{ toJson(needs.information.outputs.slug) }}'
-          target_output_json='${{ toJson(needs.information.outputs.target) }}'
-          name_output_json='${{ toJson(needs.information.outputs.name) }}'
-          description_output_json='${{ toJson(needs.information.outputs.description) }}'
-          # architectures is a JSON string (e.g., "[\"arch1\"]") or an array of these JSON strings
-          architectures_output_json='${{ toJson(needs.information.outputs.architectures) }}'
-          # build is a filename string or an array of filename strings
-          build_files_output_json='${{ toJson(needs.information.outputs.build) }}'
+          # These are now JSON arrays of strings from the 'information' job
+          slugs_list_json='${{ needs.information.outputs.slugs_list_json }}'
+          targets_list_json='${{ needs.information.outputs.targets_list_json }}'
+          names_list_json='${{ needs.information.outputs.names_list_json }}'
+          descriptions_list_json='${{ needs.information.outputs.descriptions_list_json }}'
+          # architectures_list_json is an array of JSON strings, where each string is an array of architectures for an addon
+          # e.g., '["[\"amd64\",\"armv7\"]", "[\"aarch64\"]"]'
+          architectures_list_of_json_arrays_str='${{ needs.information.outputs.architectures_list_json }}'
+          build_files_list_json='${{ needs.information.outputs.build_files_list_json }}'
 
           declare -a slugs_arr targets_arr names_arr descriptions_arr arch_lists_arr build_files_arr
 
-          # Populate bash arrays, handling whether the source was a scalar or an array
-          if [[ "$slug_output_json" == \[* ]]; then # It's a JSON array
-            mapfile -t slugs_arr < <(echo "$slug_output_json" | jq -r '.[]')
-            mapfile -t targets_arr < <(echo "$target_output_json" | jq -r '.[]')
-            mapfile -t names_arr < <(echo "$name_output_json" | jq -r '.[]')
-            mapfile -t descriptions_arr < <(echo "$description_output_json" | jq -r '.[]')
-            mapfile -t arch_lists_arr < <(echo "$architectures_output_json" | jq -r '.[]') # Each item is a JSON string like "[\"amd64\"]"
-            mapfile -t build_files_arr < <(echo "$build_files_output_json" | jq -r '.[]')
-          else # It's a scalar (single JSON string)
-            slugs_arr=("$(echo "$slug_output_json" | jq -r '.')")
-            targets_arr=("$(echo "$target_output_json" | jq -r '.')")
-            names_arr=("$(echo "$name_output_json" | jq -r '.')")
-            descriptions_arr=("$(echo "$description_output_json" | jq -r '.')")
-            arch_lists_arr=("$(echo "$architectures_output_json" | jq -r '.')") # Item is a JSON string like "[\"amd64\"]"
-            build_files_arr=("$(echo "$build_files_output_json" | jq -r '.')")
-          fi
+          mapfile -t slugs_arr < <(echo "$slugs_list_json" | jq -r '.[]')
+          mapfile -t targets_arr < <(echo "$targets_list_json" | jq -r '.[]')
+          mapfile -t names_arr < <(echo "$names_list_json" | jq -r '.[]')
+          mapfile -t descriptions_arr < <(echo "$descriptions_list_json" | jq -r '.[]')
+          # Each element of arch_lists_arr will be a JSON string like "[\"amd64\",\"armv7\"]"
+          mapfile -t arch_lists_arr < <(echo "$architectures_list_of_json_arrays_str" | jq -r '.[]')
+          mapfile -t build_files_arr < <(echo "$build_files_list_json" | jq -r '.[]')
 
           for i in "${!slugs_arr[@]}"; do
             current_slug="${slugs_arr[$i]}"
