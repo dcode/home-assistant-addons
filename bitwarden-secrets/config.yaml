@@ -1,7 +1,7 @@
 ---
 name: Bitwarden secrets for Home Assistant
 version: 1.4.6
-slug: bw-cli-secrets
+slug: addon-bw-secrets
 description: Manage Home Assistant secrets easily from Bitwarden.
 arch:
   - aarch64
