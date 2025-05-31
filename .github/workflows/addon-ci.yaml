@@ -149,7 +149,7 @@ jobs:
       - information
     strategy:
       matrix:
-        addon: ${{ fromJson(needs.information.outputs)}}
+        target: ${{ fromJson(needs.information.outputs.target)}}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -158,7 +158,7 @@ jobs:
         env:
           SHELLCHECK_OPTS: -s bash
         with:
-          scandir: ${{ matrix.addon.target }}
+          scandir: ${{ matrix.target }}
 
   lint-yamllint:
     name: YAMLLint
@@ -167,14 +167,14 @@ jobs:
       - information
     strategy:
       matrix:
-        addon: ${{ fromJson(needs.information.outputs)}}
+        target: ${{ fromJson(needs.information.outputs.target)}}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run YAMLLint
         uses: frenck/action-yamllint@v1.5
         with:
-          path: ${{ matrix.addon.target }}
+          path: ${{ matrix.target }}
 
   lint-prettier:
     name: Prettier
@@ -183,21 +183,78 @@ jobs:
       - information
     strategy:
       matrix:
-        addon: ${{ fromJson(needs.information.outputs)}}
+        target: ${{ fromJson(needs.information.outputs.target)}}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run Prettier
         uses: creyD/prettier_action@v4.5
         with:
-          prettier_options: --write ${{matrix.addon.target}}/**/*.{json,js,md,yaml}
+          prettier_options: --write ${{matrix.target}}/**/*.{json,js,md,yaml}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build_matrix:
+    name: Generate Build Matrix
+    runs-on: "ubuntu-latest"
+    needs: information
+    outputs:
+      build_matrix: ${{ steps.generate.outputs.matrix_json }}
+    steps:
+      - name: Generate matrix
+        id: generate
+        env:
+          SLUGS_JSON: ${{ toJson(needs.information.outputs.slug) }}
+          TARGETS_JSON: ${{ toJson(needs.information.outputs.target) }}
+          ARCHITECTURES_JSON_ARRAY_JSON: ${{ toJson(needs.information.outputs.architectures) }}
+          NAMES_JSON: ${{ toJson(needs.information.outputs.name) }}
+          DESCRIPTIONS_JSON: ${{ toJson(needs.information.outputs.description) }}
+          BUILD_CONFIGS_JSON_ARRAY_JSON: ${{ toJson(needs.information.outputs.build) }}
+        run: |
+          matrix_array="[]"
 
+          mapfile -t slug_arr < <(echo "$SLUGS_JSON" | jq -r '.[]')
+          mapfile -t target_arr < <(echo "$TARGETS_JSON" | jq -r '.[]')
+          mapfile -t arch_json_str_arr < <(echo "$ARCHITECTURES_JSON_ARRAY_JSON" | jq -r '.[]')
+          mapfile -t name_arr < <(echo "$NAMES_JSON" | jq -r '.[]')
+          mapfile -t desc_arr < <(echo "$DESCRIPTIONS_JSON" | jq -r '.[]')
+          mapfile -t build_json_str_arr < <(echo "$BUILD_CONFIGS_JSON_ARRAY_JSON" | jq -r '.[]')
+
+          for i in "${!slug_arr[@]}"; do
+            current_slug="${slug_arr[$i]}"
+            current_target="${target_arr[$i]}"
+            current_arch_json_str="${arch_json_str_arr[$i]}"
+            current_name="${name_arr[$i]}"
+            current_desc="${desc_arr[$i]}"
+            current_build_json_str="${build_json_str_arr[$i]}"
+
+            current_architectures=$(echo "$current_arch_json_str" | jq -r '.[]')
+            for arch in $current_architectures; do
+              matrix_entry=$(jq -n \
+                --arg slug "$current_slug" \
+                --arg target "$current_target" \
+                --arg name "$current_name" \
+                --arg description "$current_desc" \
+                --arg architecture "$arch" \
+                --arg build_config_str "$current_build_json_str" \
+                '{
+                  "addon_info": {
+                    "slug": $slug,
+                    "target": $target,
+                    "name": $name,
+                    "description": $description,
+                    "build": $build_config_str
+                  },
+                  "architecture": $architecture
+                }')
+              matrix_array=$(echo "$matrix_array" | jq --argjson entry "$matrix_entry" '. + [$entry]')
+            done
+          done
+          echo "matrix=$matrix_array" >> $GITHUB_OUTPUT
+          echo "Generated matrix: $matrix_array"
   build:
-    name: Build ${{ matrix.architecture }}
+    name: Build ${{ matrix.addon_info.name }} (${{ matrix.architecture }})
     needs:
-      - information
+      - build_matrix
       - lint-addon
       - lint-hadolint
       - lint-json
@@ -207,8 +264,7 @@ jobs:
     runs-on: ${{ contains(fromJson('["armhf", "armv7", "aarch64"]'), matrix.architecture) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        architecture: ${{ fromJson(needs.information.outputs.architectures) }}
-        addon: ${{ fromJson(needs.information.outputs) }}
+        include: ${{ fromJson(needs.build_matrix.outputs.build_matrix) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -216,10 +272,10 @@ jobs:
         id: cache
         uses: actions/cache@v4.2.3
         with:
-          path: /tmp/.docker-cache
-          key: docker-${{ matrix.architecture }}-${{ github.sha }}
+          path: /tmp/.docker-cache # Cache path
+          key: docker-${{ matrix.addon_info.slug }}-${{ matrix.architecture }}-${{ github.sha }}
           restore-keys: |
-            docker-${{ matrix.architecture }}
+            docker-${{ matrix.addon_info.slug }}-${{ matrix.architecture }}
       - name: 🏗 Set up QEMU
         uses: docker/setup-qemu-action@v3.6.0
       - name: 🏗 Set up Docker Buildx
@@ -228,7 +284,7 @@ jobs:
         id: flags
         run: |
           echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
-          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon }}/build.yaml")
+          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon_info.build }}")
           echo "from=${from}" >> "$GITHUB_OUTPUT"
 
           if [[ "${{ matrix.architecture}}" = "amd64" ]]; then
@@ -255,21 +311,20 @@ jobs:
           trap 'rm -f "$COMBINED_ARGS_TEMP_FILE"' EXIT
 
           {
-            # Part 1: Args from build.yaml (e.g., needs.information.outputs.build)
-            # yq extracts the .args map, formats as 'key: value' lines, then sed converts to 'key=value'.
-            # If '.args' is not present or empty in the build YAML, this command sequence produces no output and exits cleanly.
-            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ matrix.addon }}/build.yaml" | sed -r 's#: #=#'
+            # Part 1: Args from build config (matrix.addon_info.build)
+            # yq extracts the .args map from the JSON string, formats as 'key: value' lines, then sed converts to 'key=value'.
+            echo "${{ matrix.addon_info.build }}" | yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' | sed -r 's#: #=#' > "$COMBINED_ARGS_TEMP_FILE"
 
             # Part 2: Static args
-            # Each echo adds a KEY=VALUE pair followed by a newline.
-            echo "BUILD_ARCH=${{ matrix.architecture }}"
-            echo "BUILD_DATE=${{ steps.flags.outputs.date }}"
-            echo "BUILD_DESCRIPTION=${{ matrix.addon.description }}"
-            echo "BUILD_FROM=${{ steps.flags.outputs.from }}"
-            echo "BUILD_NAME=${{ matrix.addon.name }}"
-            echo "BUILD_REF=${{ github.sha }}"
-            echo "BUILD_REPOSITORY=${{ github.repository }}"
-            echo "BUILD_VERSION=edge"
+            echo "BUILD_ARCH=${{ matrix.architecture }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_DATE=${{ steps.flags.outputs.date }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_DESCRIPTION=${{ matrix.addon_info.description }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_FROM=${{ steps.flags.outputs.from }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_NAME=${{ matrix.addon_info.name }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_REF=${{ github.sha }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_REPOSITORY=${{ github.repository }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_VERSION=edge" >> "$COMBINED_ARGS_TEMP_FILE"
+
           } > "$COMBINED_ARGS_TEMP_FILE"
 
           echo -n "args=" >> "$GITHUB_OUTPUT"
@@ -282,11 +337,11 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           push: false
-          context: ${{ matrix.addon.target }}
-          file: ${{ matrix.addon.target }}/Dockerfile
+          context: ${{ matrix.addon_info.target }}
+          file: ${{ matrix.addon_info.target }}/Dockerfile
           cache-from: |
             type=local,src=/tmp/.docker-cache
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.addon.slug }}/${{ matrix.architecture }}:edge
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:edge
           cache-to: type=local,mode=max,dest=/tmp/.docker-cache-new
           platforms: ${{ steps.flags.outputs.platform }}
           build-args: ${{ steps.buildargs.outputs.args }}

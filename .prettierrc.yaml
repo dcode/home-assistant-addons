@@ -4,4 +4,4 @@ useTabs: false
 overrides:
   - files: "*.yaml"
     options:
-      printWidth: 120
+      printWidth: 80
