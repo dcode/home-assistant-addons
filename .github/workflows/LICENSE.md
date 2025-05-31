@@ -1,7 +1,7 @@
 # MIT License
 
-Copyright (c) 2025 Derek Ditch
-Copyright (c) 2019-2020 Alex van den Hoogen
+Copyright (c) 2025 Derek Ditch, dcode
+Copyright (c) 2021-2025 Franck Nijhof
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

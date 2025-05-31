@@ -112,6 +112,7 @@ jobs:
       names_list_json: ${{ steps.collect_info.outputs.names_list_json }}
       slugs_list_json: ${{ steps.collect_info.outputs.slugs_list_json }}
       targets_list_json: ${{ steps.collect_info.outputs.targets_list_json }}
+      versions_list_json: ${{ steps.collect_info.outputs.versions_list_json }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4

@@ -8,8 +8,12 @@ concurrency:
 on:
   workflow_call:
     inputs:
+      addon:
+        description: Overrides detected changed addons
+        required: false
+        type: string
       slug:
-        description: Overrides the detected slug
+        description: Overrides detected slug (for all addons built this run)
         required: false
         type: string
       repository:
@@ -30,8 +34,72 @@ on:
     secrets:
       DISPATCH_TOKEN:
         required: true
+env:
+  MONITORED_FILES: "build.yaml build.json config.yaml config.json Dockerfile rootfs"
 
 jobs:
+  init:
+    runs-on: ubuntu-latest
+    name: Initialize builds
+    outputs:
+      addons: ${{ steps.changed_addons.outputs.all_addons_json }}
+      changed_addons: ${{ steps.changed_addons.outputs.changed_addons }}
+      changed: ${{ steps.changed_addons.outputs.changed }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed_files
+        continue-on-error: true
+        uses: jitterbit/get-changed-files@v1
+
+      - name: Find add-on directories
+        id: addons
+        uses: home-assistant/actions/helpers/find-addons@master
+
+      - name: Get changed add-ons
+        id: changed_addons
+        run: |
+          declare -a changed_addons_list  # Renamed for clarity and consistency
+          declare -a all_addons
+
+          for addon in ${{ steps.addons.outputs.addons }}; do
+            if [[ ! "${all_addons[@]}" =~ $addon ]]; then
+              all_addons+=("\"${addon}\",");
+            fi
+
+            # Check for changes in monitored files in this add-on
+            if [[ "${{ steps.changed_files.outcome == 'success' && steps.changed_files.outputs.all || '' }}" =~ $addon ]]; then
+              for file in ${{ env.MONITORED_FILES }}; do
+                  if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
+                    if [[ ! "${changed_addons_list[@]}" =~ $addon ]]; then # Use renamed variable
+                      changed_addons_list+=("\"${addon}\","); # Use renamed variable
+                    fi
+                  fi
+              done
+            fi
+          done
+
+          # Prepare JSON array string for all addons
+          all_addons_json_string=$(echo "${all_addons[@]}" | sed 's/,$//')
+          if [[ -n "${all_addons_json_string}" ]]; then
+            echo "all_addons_json=[${all_addons_json_string}]" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "all_addons_json=[]" | tee -a "$GITHUB_OUTPUT"
+          fi
+
+          # Prepare JSON array string for changed addons and set 'changed' flag
+          changed_addons_json_string=$(echo "${changed_addons_list[@]}" | sed 's/,$//') # Use renamed variable
+          if [[ -n "${changed_addons_json_string}" ]]; then
+            echo "Changed add-ons: [${changed_addons_json_string}]";
+            echo "changed=true" | tee -a "$GITHUB_OUTPUT";
+            echo "changed_addons=[${changed_addons_json_string}]" | tee -a "$GITHUB_OUTPUT";
+          else
+            echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
+            echo "changed=false" | tee -a "$GITHUB_OUTPUT"; # Explicitly set changed to false
+            echo "changed_addons=[]" | tee -a "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
+          fi
   information:
     if: |
       github.event_name == 'release'
@@ -41,57 +109,194 @@ jobs:
       )
     name: ℹ️ Gather add-on information
     runs-on: ubuntu-latest
+    needs:
+      - init
     outputs:
-      architectures: ${{ steps.information.outputs.architectures }}
-      base_image_signer: ${{ steps.information.outputs.codenotary_base_image }}
-      build: ${{ steps.information.outputs.build }}
-      description: ${{ steps.information.outputs.description }}
-      environment: ${{ steps.release.outputs.environment }}
-      name: ${{ steps.information.outputs.name }}
-      signer: ${{ steps.information.outputs.codenotary_signer }}
-      slug: ${{ steps.override.outputs.slug }}
-      target: ${{ steps.information.outputs.target }}
-      version: ${{ steps.release.outputs.version }}
+      # These will be JSON arrays of strings. e.g., targets_list_json will be '["./addon1", "./addon2"]'
+      # architectures_list_json will be an array of JSON strings, e.g., '["[\"amd64\",\"armv7\"]", "[\"aarch64\"]"]'
+      architectures_list_json: ${{ steps.collect_info.outputs.architectures_list_json }}
+      # base_image_signers_list_json: ${{ steps.collect_info.outputs.base_image_signers_list_json }} # Placeholder, not fully implemented
+      build_files_list_json: ${{ steps.collect_info.outputs.build_files_list_json }}
+      descriptions_list_json: ${{ steps.collect_info.outputs.descriptions_list_json }}
+      names_list_json: ${{ steps.collect_info.outputs.names_list_json }}
+      slugs_list_json: ${{ steps.collect_info.outputs.slugs_list_json }}
+      targets_list_json: ${{ steps.collect_info.outputs.targets_list_json }}
+      versions_list_json: ${{ steps.collect_info.outputs.versions_list_json }}
+      envs_list_json: ${{ steps.collect_info.outputs.envs_list_json }}
+      environment: ${{ steps.collect_info.outputs.environment }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
-      - name: 🚀 Run add-on information action
-        id: information
-        uses: frenck/action-addon-information@v1.4.2
-      - name: 🚀 Process possible slug override
-        id: override
-        run: |
-          slug="${{ steps.information.outputs.slug }}"
-          if [[ ! -z "${{ inputs.slug }}" ]]; then
-            slug="${{ inputs.slug }}"
-          fi
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
-      - name: ℹ️ Gather version and environment
-        id: release
+
+      - name: Determine addons to process and collect information
+        id: collect_info
         run: |
           sha="${{ github.sha }}"
+          tasked_addons_json_array_string='${{ inputs.addon && format('["{0}"]', inputs.addon) || (needs.init.outputs.changed == 'true' && needs.init.outputs.changed_addons) || (needs.init.outputs.addons && needs.init.outputs.addons) || '[]' }}'
+
+          echo "Tasked addons JSON string: $tasked_addons_json_array_string"
+          mapfile -t addons_to_process < <(echo "$tasked_addons_json_array_string" | jq -r '.[]')
+
+          declare -a all_slugs_arr all_targets_arr all_names_arr \
+            all_descriptions_arr all_architectures_arr all_build_files_arr \
+            all_versions_arr all_envs_arr # all_base_image_signers_arr
+
+          # Environment is the same for each addon
           environment="edge"
-          version="${sha:0:7}"
-          if [[ "${{ github.event_name }}" = "release" ]]; then
-            version="${{ github.event.release.tag_name }}"
-            version="${version,,}"
-            version="${version#v}"
+          if [[ "${{ github.event_name }}" == "release" ]]; then
             environment="stable"
             if [[ "${{ github.event.release.prerelease }}" = "true" ]]; then
               environment="beta"
             fi
+          else
+            environment="edge"
+          fi
+          echo "environment=$environment" | tee -a "$GITHUB_OUTPUT"
+
+          if [ ${#addons_to_process[@]} -eq 0 ]; then
+            echo "No addons to process."
+          else
+            for addon_slug in "${addons_to_process[@]}"; do
+              echo "Processing addon: $addon_slug"
+              addon_path="./$addon_slug"
+              config_file="$addon_path/config.yaml"
+              build_file_path_convention="$addon_path/build.yaml"
+
+              if [ ! -f "$config_file" ]; then
+                echo "::warning::Config file $config_file not found for addon $addon_slug. Skipping."
+                continue
+              fi
+
+              current_slug_from_config=$(yq eval '.slug' "$config_file")
+              # Use inputs.slug to override for all, otherwise use slug from config
+              final_slug="${{ inputs.slug || '$current_slug_from_config' }}"
+
+              current_ver_from_config=$(yq eval '.version' "$config_file")
+              if [[ "${{ github.event_name }}" == "release" ]]; then
+                # NOTE: (dcode) If I split these addons to separate repos, switch back to tag name
+                #version="${{ github.event.release.tag_name }}"
+                # For monorepo, use addon version from config
+                version="${current_ver_from_config}"
+                version="${version,,}"
+                version="${version#v}"
+              else
+                version="${sha:0:7}"
+              fi
+
+              all_slugs_arr+=("$(jq -cn --arg s "$final_slug" '$s')")
+              all_versions_arr+=("$(jq -cn --arg s "$version" '$s')")
+              all_envs_arr+=("$(jq -cn --arg s "$environment" '$s')")
+              all_targets_arr+=("$(jq -cn --arg s "$addon_path" '$s')")
+              all_names_arr+=("$(jq -cn --arg s "$(yq eval '.name' "$config_file")" '$s')")
+              all_descriptions_arr+=("$(jq -cn --arg s "$(yq eval '.description' "$config_file")" '$s')")
+              # .arch is an array in yaml, to_json converts it to a JSON array string e.g. "[\"amd64\",\"armv7\"]"
+              all_architectures_arr+=("$(yq eval '.arch | to_json' "$config_file" | jq -c .)")
+              all_build_files_arr+=("$(jq -cn --arg s "$build_file_path_convention" '$s')")
+
+              # all_base_image_signers_arr+=("$(jq -cn --arg s "signer_for_${final_slug}" '$s')") # Placeholder
+            done
           fi
 
-          echo "environment=${environment}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          # Output each collected list as a JSON array string
+          echo "slugs_list_json=$(IFS=,; echo "[${all_slugs_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "versions_list_json=$(IFS=,; echo "[${all_versions_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "envs_list_json=$(IFS=,; echo "[${all_envs_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "targets_list_json=$(IFS=,; echo "[${all_targets_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "names_list_json=$(IFS=,; echo "[${all_names_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "descriptions_list_json=$(IFS=,; echo "[${all_descriptions_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          echo "architectures_list_json=$(IFS=,; echo "[${all_architectures_arr[*]}]")" | tee -a "$GITHUB_OUTPUT" # This is an array of JSON strings
+          echo "build_files_list_json=$(IFS=,; echo "[${all_build_files_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+          # echo "base_image_signers_list_json=$(IFS=,; echo "[${all_base_image_signers_arr[*]}]")" | tee -a "$GITHUB_OUTPUT"
+  build_matrix:
+    name: Generate Build Matrix
+    runs-on: "ubuntu-latest"
+    needs: information
+    outputs:
+      build_matrix: ${{ steps.generate.outputs.matrix_json }}
+    steps:
+      - name: Generate matrix per addon information output
+        id: generate
+        run: |
+          set -eo pipefail
+          final_matrix_array="[]"
 
+          # These are now JSON arrays of strings from the 'information' job
+          slugs_list_json='${{ needs.information.outputs.slugs_list_json }}'
+          targets_list_json='${{ needs.information.outputs.targets_list_json }}'
+          names_list_json='${{ needs.information.outputs.names_list_json }}'
+          descriptions_list_json='${{ needs.information.outputs.descriptions_list_json }}'
+          versions_list_json='${{ needs.information.outputs.versions_list_json }}'
+          envs_list_json='${{ needs.information.outputs.envs_list_json }}'
+          # architectures_list_json is an array of JSON strings, where each string is an array of architectures for an addon
+          # e.g., '["[\"amd64\",\"armv7\"]", "[\"aarch64\"]"]'
+          architectures_list_of_json_arrays_str='${{ needs.information.outputs.architectures_list_json }}'
+          build_files_list_json='${{ needs.information.outputs.build_files_list_json }}'
+
+          declare -a slugs_arr targets_arr names_arr descriptions_arr \
+            versions_arr envs_arr arch_lists_arr build_files_arr
+
+          mapfile -t slugs_arr < <(echo "$slugs_list_json" | jq -r '.[]')
+          mapfile -t versions_arr < <(echo "$versions_list_json" | jq -r '.[]')
+          mapfile -t envs_arr < <(echo "$envs_list_json" | jq -r '.[]')
+          mapfile -t targets_arr < <(echo "$targets_list_json" | jq -r '.[]')
+          mapfile -t names_arr < <(echo "$names_list_json" | jq -r '.[]')
+          mapfile -t descriptions_arr < <(echo "$descriptions_list_json" | jq -r '.[]')
+          # Each element of arch_lists_arr will be a JSON string like "[\"amd64\",\"armv7\"]"
+          mapfile -t arch_lists_arr < <(echo "$architectures_list_of_json_arrays_str" | jq -c '.[]')
+          mapfile -t build_files_arr < <(echo "$build_files_list_json" | jq -r '.[]')
+
+          for i in "${!slugs_arr[@]}"; do
+            current_slug="${slugs_arr[$i]}"
+            current_target="${targets_arr[$i]}"
+            current_name="${names_arr[$i]}"
+            current_desc="${descriptions_arr[$i]}"
+            current_version="${versions_arr[$i]}"
+            current_env="${envs_arr[$i]}"
+
+            current_arch_list_json_str="${arch_lists_arr[$i]}" # This is a string like '["amd64", "armv7"]'
+            current_build_file="${build_files_arr[$i]}"       # This is the filename, e.g., "myaddon/build.yaml"
+
+            mapfile -t current_addon_architectures < <(echo "$current_arch_list_json_str" | jq -r '.[]')
+
+            if [ ${#current_addon_architectures[@]} -eq 0 ]; then
+              echo "Warning: Addon $current_slug has no architectures from $current_arch_list_json_str. Skipping."
+              continue
+            fi
+
+            for arch in "${current_addon_architectures[@]}"; do
+            matrix_entry=$(jq -cn \
+              --arg slug "$current_slug" \
+              --arg target "$current_target" \
+              --arg name "$current_name" \
+              --arg description "$current_desc" \
+              --arg architecture "$arch" \
+              --arg build_file_path "$current_build_file" \
+              --arg version "$current_version" \
+              --arg env "$current_env" \
+              '{
+                "addon_info": {
+                  "slug": $slug,
+                  "target": $target,
+                  "version": $version,
+                  "environment": $env,
+                  "name": $name,
+                  "description": $description,
+                  "build_file": $build_file_path
+                },
+                "architecture": $architecture
+              }')
+            final_matrix_array=$(echo "$final_matrix_array" | jq -c --argjson entry "$matrix_entry" '. + [$entry]')
+            done
+          done
+          echo "matrix_json=$final_matrix_array" | tee -a $GITHUB_OUTPUT
   deploy:
     name: 👷 Build & Deploy ${{ matrix.architecture }}
-    needs: information
+    needs:
+      - build_matrix
     runs-on: ${{ contains(fromJson('["armhf", "armv7", "aarch64"]'), matrix.architecture) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        architecture: ${{ fromJson(needs.information.outputs.architectures) }}
+        include: ${{ fromJson(needs.build_matrix.outputs.build_matrix) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -110,20 +315,20 @@ jobs:
       - name: ℹ️ Compose build flags
         id: flags
         run: |
-          echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
-          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ needs.information.outputs.build }}")
-          echo "from=${from}" >> "$GITHUB_OUTPUT"
+          echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" | tee -a "$GITHUB_OUTPUT"
+          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon_info.build_file }}")
+          echo "from=${from}" | tee -a "$GITHUB_OUTPUT"
 
           if [[ "${{ matrix.architecture}}" = "amd64" ]]; then
-            echo "platform=linux/amd64" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/amd64" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "i386" ]]; then
-            echo "platform=linux/386" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/386" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "armhf" ]]; then
-            echo "platform=linux/arm/v6" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/arm/v6" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "armv7" ]]; then
-            echo "platform=linux/arm/v7" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/arm/v7" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "aarch64" ]]; then
-            echo "platform=linux/arm64/v8" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/arm64/v8" | tee -a "$GITHUB_OUTPUT"
           else
             echo "::error ::Could not determine platform for architecture ${{ matrix.architecture }}"
             exit 1
@@ -144,26 +349,27 @@ jobs:
           trap 'rm -f "$COMBINED_ARGS_TEMP_FILE"' EXIT
 
           {
-            # Part 1: Args from build.yaml (e.g., needs.information.outputs.build)
-            # yq extracts the .args map, formats as 'key: value' lines, then sed converts to 'key=value'.
-            # If '.args' is not present or empty in the build YAML, this command sequence produces no output and exits cleanly.
-            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ needs.information.outputs.build }}" | sed -r 's#: #=#'
+            # Part 1: Args from build config (matrix.addon_info.build_file)
+            # yq extracts the .args map from the JSON string, formats as 'key: value' lines, then sed converts to 'key=value'.
+            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ matrix.addon_info.build_file }}" | sed -r 's#: #=#' > "$COMBINED_ARGS_TEMP_FILE"
 
             # Part 2: Static args
-            # Each echo adds a KEY=VALUE pair followed by a newline.
-            echo "BUILD_ARCH=${{ matrix.architecture }}"
-            echo "BUILD_DATE=${{ steps.flags.outputs.date }}"
-            echo "BUILD_DESCRIPTION=${{ needs.information.outputs.description }}"
-            echo "BUILD_FROM=${{ steps.flags.outputs.from }}"
-            echo "BUILD_NAME=${{ needs.information.outputs.name }}"
-            echo "BUILD_REF=${{ github.sha }}"
-            echo "BUILD_REPOSITORY=${{ github.repository }}"
-            echo "BUILD_VERSION=${{ needs.information.outputs.version }}"
+            echo "BUILD_ARCH=${{ matrix.architecture }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_DATE=${{ steps.flags.outputs.date }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_DESCRIPTION=${{ matrix.addon_info.description }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_FROM=${{ steps.flags.outputs.from }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_NAME=${{ matrix.addon_info.name }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_REF=${{ github.sha }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_REPOSITORY=${{ github.repository }}" >> "$COMBINED_ARGS_TEMP_FILE"
+            echo "BUILD_VERSION=${{ matrix.addon_info.version }}" >> "$COMBINED_ARGS_TEMP_FILE"
+
           } > "$COMBINED_ARGS_TEMP_FILE"
 
-          echo -n "args=" >> "$GITHUB_OUTPUT"
-          # Filter out any blank lines from the final list of arguments
-          awk 'NF' "$COMBINED_ARGS_TEMP_FILE" >> "$GITHUB_OUTPUT"
+          # Output the content of COMBINED_ARGS_TEMP_FILE as a multiline string,
+          # after filtering out blank lines.
+          echo "args<<ARGS_EOF" | tee -a "$GITHUB_OUTPUT"
+          awk 'NF' "$COMBINED_ARGS_TEMP_FILE" | tee -a "$GITHUB_OUTPUT" # NF filters out blank lines
+          echo "ARGS_EOF" | tee -a "$GITHUB_OUTPUT"
       - name: ⤵️ Download base image
         if: steps.flags.outputs.from != 'null'
         run: docker pull "${{ steps.flags.outputs.from }}"
@@ -173,14 +379,14 @@ jobs:
           load: true
           # yamllint disable rule:line-length
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:${{ matrix.addon_info.environment }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:${{ matrix.addon_info.version }}
           # yamllint enable rule:line-length
-          context: ${{ needs.information.outputs.target }}
-          file: ${{ needs.information.outputs.target }}/Dockerfile
+          context: ${{ matrix.addon_info.target }}
+          file: ${{ matrix.addon_info.target }}/Dockerfile
           cache-from: |
             type=local,src=/tmp/.docker-cache
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:edge
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:edge
           cache-to: type=local,mode=max,dest=/tmp/.docker-cache-new
           platforms: ${{ steps.flags.outputs.platform }}
           build-args: ${{ steps.buildargs.outputs.args }}
@@ -197,15 +403,26 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           docker push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.environment }}"
+            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:${{ matrix.addon_info.environment }}"
           docker push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:${{ needs.information.outputs.version }}"
+            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:${{ matrix.addon_info.version }}"
   manifest:
     name: 👷 Build & Deploy Multi Arch Manifest
     needs:
-      - information
+      - build_matrix
       - deploy
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.build_matrix.outputs.build_matrix) }}
+        # Only run on one architecture, since we're combining architectures below
+        exclude:
+          - architecture: aarch64
+          - architecture: armhf
+          - architecture: i386
+          - architecture: armv7
+    outputs:
+      addon_info: ${{ matrix.addon_info }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -218,18 +435,18 @@ jobs:
           declare -a images
 
           for architecture in $( \
-            echo '${{ needs.information.outputs.architectures }}' \
+            echo '${{ needs.build_matrix.outputs.build_matrix }}' | jq --raw-output '.[].architecture' \
             | jq --raw-output '.[]'
           ); do
-            images+=("ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${architecture}:${{ needs.information.outputs.version }}")
+            images+=("ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${architecture}:${{ matrix.addon_info.version }}")
           done
 
           docker manifest create \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}:${{ needs.information.outputs.environment }}" \
+            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.environment }}" \
             "${images[@]}"
 
           docker manifest create \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}:${{ needs.information.outputs.version }}" \
+            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.version }}" \
             "${images[@]}"
 
       - name: 🏗  Login to GitHub Container Registry
@@ -243,16 +460,21 @@ jobs:
         # yamllint disable rule:line-length
         run: |
           docker manifest push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}:${{ needs.information.outputs.environment }}"
+            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.environment }}"
           docker manifest push \
-            "ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}:${{ needs.information.outputs.version }}"
+            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.version }}"
 
+  # Skipping publish jobs for now
   publish-edge:
     name: 📢 Publish to edge repository
-    if: needs.information.outputs.environment == 'edge'
+    if: false && needs.information.outputs.environment == 'edge'
     needs:
       - information
       - deploy
+      - manifest
+    strategy:
+      matrix:
+        addon_info: ${{ needs.manifest.outputs.addon_info }}
     environment:
       name: ${{ needs.information.outputs.environment }}
     runs-on: ubuntu-latest
@@ -265,20 +487,27 @@ jobs:
           event-type: update
           client-payload: >
             {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
+              "addon": "${{ matrix.addon_info.slug }}",
+              "name": "${{ matrix.addon_info.slug }}",
               "repository": "${{ github.repository }}",
-              "version": "${{ needs.information.outputs.version }}"
+              "version": "${{ matrix.addon_info.version }}"
             }
 
   publish-beta:
     name: 📢 Publish to beta repository
     if: |
-      needs.information.outputs.environment == 'beta' ||
-      needs.information.outputs.environment == 'stable'
+      false &&
+      (
+        needs.information.outputs.environment == 'beta' ||
+        needs.information.outputs.environment == 'stable'
+      )
     needs:
       - information
       - deploy
+      - manifest
+    strategy:
+      matrix:
+        addon_info: ${{ needs.manifest.outputs.addon_info }}
     environment:
       name: ${{ needs.information.outputs.environment }}
     runs-on: ubuntu-latest
@@ -291,18 +520,22 @@ jobs:
           event-type: update
           client-payload: >
             {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
+              "addon": "${{ matrix.addon_info.slug }}",
+              "name": "${{ matrix.addon_info.slug }}",
               "repository": "${{ github.repository }}",
               "version": "${{ github.event.release.tag_name }}"
             }
 
   publish-stable:
     name: 📢 Publish to stable repository
-    if: needs.information.outputs.environment == 'stable'
+    if: false && needs.information.outputs.environment == 'stable'
     needs:
       - information
       - deploy
+      - manifest
+    strategy:
+      matrix:
+        addon_info: ${{ needs.manifest.outputs.addon_info }}
     environment:
       name: ${{ needs.information.outputs.environment }}
     runs-on: ubuntu-latest
@@ -315,8 +548,8 @@ jobs:
           event-type: update
           client-payload: >
             {
-              "addon": "${{ needs.information.outputs.slug }}",
-              "name": "${{ needs.information.outputs.name }}",
+              "addon": "${{ matrix.addon_info.slug }}",
+              "name": "${{ matrix.addon_info.slug }}",
               "repository": "${{ github.repository }}",
               "version": "${{ github.event.release.tag_name }}"
             }
