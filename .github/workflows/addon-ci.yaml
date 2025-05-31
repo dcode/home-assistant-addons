@@ -332,10 +332,11 @@ jobs:
 
           } > "$COMBINED_ARGS_TEMP_FILE"
 
-          echo -n "args=" | tee -a "$GITHUB_OUTPUT"
-          # Filter out any blank lines from the final list of arguments,
-          # convert to JSON list of strings and send to output
-          jq -Rcs 'split("\n") | map(select(. != ""))' < <($COMBINED_ARGS_TEMP_FILE) |  tee -a "$GITHUB_OUTPUT"
+          # Output the content of COMBINED_ARGS_TEMP_FILE as a multiline string,
+          # after filtering out blank lines.
+          echo "args<<ARGS_EOF" | tee -a "$GITHUB_OUTPUT"
+          awk 'NF' "$COMBINED_ARGS_TEMP_FILE" | tee -a "$GITHUB_OUTPUT" # NF filters out blank lines
+          echo "ARGS_EOF" | tee -a "$GITHUB_OUTPUT"
 
       - name: ⤵️ Download base image
         if: steps.flags.outputs.from != 'null'
@@ -351,7 +352,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${{ matrix.architecture }}:edge
           cache-to: type=local,mode=max,dest=/tmp/.docker-cache-new
           platforms: ${{ steps.flags.outputs.platform }}
-          build-args: ${{ fromJson(steps.buildargs.outputs.args) }}
+          build-args: ${{ steps.buildargs.outputs.args }}
 
       # This ugly bit is necessary, or our cache will grow forever...
       # Well until we hit GitHub's limit of 5GB :)
