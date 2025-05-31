@@ -222,40 +222,74 @@ jobs:
       - name: Generate matrix per addon information output
         id: generate
         run: |
-          matrix_array="[]"
+          final_matrix_array="[]"
 
-          # Create a bash array from the architectures JSON array string
-          mapfile -t current_architectures < <(echo '${{ needs.information.outputs.architectures }}' | jq -r '.[]')
+          # Get outputs as JSON strings to handle both scalar and array cases from the 'information' job
+          slug_output_json='${{ toJson(needs.information.outputs.slug) }}'
+          target_output_json='${{ toJson(needs.information.outputs.target) }}'
+          name_output_json='${{ toJson(needs.information.outputs.name) }}'
+          description_output_json='${{ toJson(needs.information.outputs.description) }}'
+          # architectures is a JSON string (e.g., "[\"arch1\"]") or an array of these JSON strings
+          architectures_output_json='${{ toJson(needs.information.outputs.architectures) }}'
+          # build is a filename string or an array of filename strings
+          build_files_output_json='${{ toJson(needs.information.outputs.build) }}'
 
-          current_slug="${{ needs.information.outputs.slug }}"
-          current_target="${{ needs.information.outputs.target }}"
-          current_name="${{ needs.information.outputs.name }}"
-          current_desc="${{ needs.information.outputs.description }}"
-          current_build="${{ needs.information.outputs.build }}"
+          declare -a slugs_arr targets_arr names_arr descriptions_arr arch_lists_arr build_files_arr
 
-          # Iterate over each architecture to generate a build matrix entry for this addon
-          for arch in "${current_architectures[@]}"; do
+          # Populate bash arrays, handling whether the source was a scalar or an array
+          if [[ "$slug_output_json" == \[* ]]; then # It's a JSON array
+            mapfile -t slugs_arr < <(echo "$slug_output_json" | jq -r '.[]')
+            mapfile -t targets_arr < <(echo "$target_output_json" | jq -r '.[]')
+            mapfile -t names_arr < <(echo "$name_output_json" | jq -r '.[]')
+            mapfile -t descriptions_arr < <(echo "$description_output_json" | jq -r '.[]')
+            mapfile -t arch_lists_arr < <(echo "$architectures_output_json" | jq -r '.[]') # Each item is a JSON string like "[\"amd64\"]"
+            mapfile -t build_files_arr < <(echo "$build_files_output_json" | jq -r '.[]')
+          else # It's a scalar (single JSON string)
+            slugs_arr=("$(echo "$slug_output_json" | jq -r '.')")
+            targets_arr=("$(echo "$target_output_json" | jq -r '.')")
+            names_arr=("$(echo "$name_output_json" | jq -r '.')")
+            descriptions_arr=("$(echo "$description_output_json" | jq -r '.')")
+            arch_lists_arr=("$(echo "$architectures_output_json" | jq -r '.')") # Item is a JSON string like "[\"amd64\"]"
+            build_files_arr=("$(echo "$build_files_output_json" | jq -r '.')")
+          fi
+
+          for i in "${!slugs_arr[@]}"; do
+            current_slug="${slugs_arr[$i]}"
+            current_target="${targets_arr[$i]}"
+            current_name="${names_arr[$i]}"
+            current_desc="${descriptions_arr[$i]}"
+            current_arch_list_json_str="${arch_lists_arr[$i]}" # This is a string like '["amd64", "armv7"]'
+            current_build_file="${build_files_arr[$i]}"       # This is the filename, e.g., "myaddon/build.yaml"
+
+            mapfile -t current_addon_architectures < <(echo "$current_arch_list_json_str" | jq -r '.[]')
+
+            if [ ${#current_addon_architectures[@]} -eq 0 ]; then
+              echo "Warning: Addon $current_slug has no architectures from $current_arch_list_json_str. Skipping."
+              continue
+            fi
+
+            for arch in "${current_addon_architectures[@]}"; do
             matrix_entry=$(jq -cn \
               --arg slug "$current_slug" \
               --arg target "$current_target" \
               --arg name "$current_name" \
               --arg description "$current_desc" \
               --arg architecture "$arch" \
-              --arg build_config "$current_build" \
+              --arg build_file_path "$current_build_file" \
               '{
                 "addon_info": {
                   "slug": $slug,
                   "target": $target,
                   "name": $name,
                   "description": $description,
-                  "build": $build_config
+                  "build_file": $build_file_path
                 },
                 "architecture": $architecture
               }')
-            matrix_array=$(echo "$matrix_array" | jq -c --argjson entry "$matrix_entry" '. + [$entry]')
+            final_matrix_array=$(echo "$final_matrix_array" | jq -c --argjson entry "$matrix_entry" '. + [$entry]')
+            done
           done
-
-          echo "matrix_json=$matrix_array" | tee -a $GITHUB_OUTPUT
+          echo "matrix_json=$final_matrix_array" | tee -a $GITHUB_OUTPUT
   build:
     name: Build ${{ matrix.addon_info.name }} (${{ matrix.architecture }})
     needs:
@@ -269,8 +303,7 @@ jobs:
     runs-on: ${{ contains(fromJson('["armhf", "armv7", "aarch64"]'), matrix.architecture) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        architecture: ${{ fromJson(needs.build_matrix.outputs.build_matrix).architecture }}
-        addon_info: ${{ fromJson(needs.build_matrix.outputs.build_matrix).addon_info }}
+        include: ${{ fromJson(needs.build_matrix.outputs.build_matrix) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -290,7 +323,7 @@ jobs:
         id: flags
         run: |
           echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" | tee -a "$GITHUB_OUTPUT"
-          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon_info.build }}")
+          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon_info.build_file }}")
           echo "from=${from}" | tee -a "$GITHUB_OUTPUT"
 
           if [[ "${{ matrix.architecture}}" = "amd64" ]]; then
@@ -317,9 +350,9 @@ jobs:
           trap 'rm -f "$COMBINED_ARGS_TEMP_FILE"' EXIT
 
           {
-            # Part 1: Args from build config (matrix.addon_info.build)
+            # Part 1: Args from build config (matrix.addon_info.build_file)
             # yq extracts the .args map from the JSON string, formats as 'key: value' lines, then sed converts to 'key=value'.
-            echo "${{ matrix.addon_info.build }}" | yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' | sed -r 's#: #=#' > "$COMBINED_ARGS_TEMP_FILE"
+            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ matrix.addon_info.build_file }}" | sed -r 's#: #=#' > "$COMBINED_ARGS_TEMP_FILE"
 
             # Part 2: Static args
             echo "BUILD_ARCH=${{ matrix.architecture }}" >> "$COMBINED_ARGS_TEMP_FILE"
