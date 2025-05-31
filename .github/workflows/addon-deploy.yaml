@@ -462,7 +462,7 @@ jobs:
 
           for architecture_value in "${architectures_for_addon[@]}"; do
             images+=("ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG/${architecture_value}:$CURRENT_ADDON_VERSION")
-          ); do
+          done
 
           docker manifest create \
             "ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG:$CURRENT_ADDON_ENVIRONMENT" \
