@@ -269,7 +269,8 @@ jobs:
     runs-on: ${{ contains(fromJson('["armhf", "armv7", "aarch64"]'), matrix.architecture) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        include: ${{ fromJson(needs.build_matrix.outputs.build_matrix) }}
+        architecture: ${{ fromJson(needs.build_matrix.outputs.build_matrix.architecture) }}
+        addon_info: ${{ fromJson(needs.build_matrix.outputs.build_matrix.addon_info) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
