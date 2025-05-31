@@ -25,8 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Initialize builds
     outputs:
-      addons: ${{ steps.addons.outputs.addons }}
-      changed_addons: ${{ steps.changed_addons.outputs.addons }}
+      addons: ${{ steps.changed_addons.outputs.all_addons_json }}
+      changed_addons: ${{ steps.changed_addons.outputs.changed_addons }}
       changed: ${{ steps.changed_addons.outputs.changed }}
     steps:
       - name: Check out the repository
@@ -44,7 +44,14 @@ jobs:
         id: changed_addons
         run: |
           declare -a changed_addons
+          declare -a all_addons
+
           for addon in ${{ steps.addons.outputs.addons }}; do
+            if [[ ! "${all_addons[@]}" =~ $addon ]]; then
+              all_addons+=("\"${addon}\",");
+            fi
+
+            # Check for changes in monitored files in this add-on
             if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon ]]; then
               for file in ${{ env.MONITORED_FILES }}; do
                   if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
@@ -56,14 +63,24 @@ jobs:
             fi
           done
 
-          changed=$(echo ${changed_addons[@]} | rev | cut -c 2- | rev)
+          # Prepare JSON array string for all addons
+          all_addons_json_string=$(echo "${all_addons[@]}" | sed 's/,$//')
+          if [[ -n "${all_addons_json_string}" ]]; then
+            echo "all_addons_json=[${all_addons_json_string}]" | tee "$GITHUB_OUTPUT"
+          else
+            echo "all_addons_json=[]" >> "$GITHUB_OUTPUT"
+          fi
 
-          if [[ -n ${changed} ]]; then
-            echo "Changed add-ons: $changed";
-            echo "changed=true" >> $GITHUB_OUTPUT;
-            echo "addons=[$changed]" >> $GITHUB_OUTPUT;
+          # Prepare JSON array string for changed addons and set 'changed' flag
+          changed_addons_json_string=$(echo "${changed_addons_array[@]}" | sed 's/,$//')
+          if [[ -n "${changed_addons_json_string}" ]]; then
+            echo "Changed add-ons: [${changed_addons_json_string}]";
+            echo "changed=true" >> "$GITHUB_OUTPUT";
+            echo "changed_addons=[${changed_addons_json_string}]" >> "$GITHUB_OUTPUT";
           else
             echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
+            echo "changed=false" >> "$GITHUB_OUTPUT"; # Explicitly set changed to false
+            echo "changed_addons=[]" >> "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
           fi
   information:
     name: Gather add-on information for selected add-ons
@@ -72,7 +89,7 @@ jobs:
       - init
     strategy:
       matrix:
-        addon: ${{ inputs.addon || fromJson(needs.init.outputs.changed_addons) || fromJson(needs.init.outputs.addons )}}
+        addon: ${{ inputs.addon && fromJson(format('["{0}"]', inputs.addon)) || (needs.init.outputs.changed == 'true' && fromJson(needs.init.outputs.changed_addons)) || (needs.init.outputs.addons && fromJson(needs.init.outputs.addons)) || fromJson('[]') }}
     outputs:
       architectures: ${{ steps.information.outputs.architectures }}
       base_image_signer: ${{ steps.information.outputs.codenotary_base_image }}
