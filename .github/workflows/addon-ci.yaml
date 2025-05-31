@@ -66,21 +66,21 @@ jobs:
           # Prepare JSON array string for all addons
           all_addons_json_string=$(echo "${all_addons[@]}" | sed 's/,$//')
           if [[ -n "${all_addons_json_string}" ]]; then
-            echo "all_addons_json=[${all_addons_json_string}]" | tee "$GITHUB_OUTPUT"
+            echo "all_addons_json=[${all_addons_json_string}]" | tee -a "$GITHUB_OUTPUT"
           else
-            echo "all_addons_json=[]" | tee "$GITHUB_OUTPUT"
+            echo "all_addons_json=[]" | tee -a "$GITHUB_OUTPUT"
           fi
 
           # Prepare JSON array string for changed addons and set 'changed' flag
           changed_addons_json_string=$(echo "${changed_addons_array[@]}" | sed 's/,$//')
           if [[ -n "${changed_addons_json_string}" ]]; then
             echo "Changed add-ons: [${changed_addons_json_string}]";
-            echo "changed=true" | tee "$GITHUB_OUTPUT";
-            echo "changed_addons=[${changed_addons_json_string}]" | tee "$GITHUB_OUTPUT";
+            echo "changed=true" | tee -a "$GITHUB_OUTPUT";
+            echo "changed_addons=[${changed_addons_json_string}]" | tee -a "$GITHUB_OUTPUT";
           else
             echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
-            echo "changed=false" | tee "$GITHUB_OUTPUT"; # Explicitly set changed to false
-            echo "changed_addons=[]" | tee "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
+            echo "changed=false" | tee -a "$GITHUB_OUTPUT"; # Explicitly set changed to false
+            echo "changed_addons=[]" | tee -a "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
           fi
   debug:
     name: Debug the selected addon job values
@@ -90,10 +90,11 @@ jobs:
     steps:
       - name: Dump init context
         run: |
+          echo "Input addon: ${{ inputs.addon }}"
           echo "All Addons: ${{ needs.init.outputs.addons }}"
           echo "Changed Addons: ${{ needs.init.outputs.changed_addons }}"
           echo "Changed: ${{ needs.init.outputs.changed }}"
-          echo "Tasked Addons ${{ inputs.addon && fromJson(format('["{0}"]', inputs.addon)) || (needs.init.outputs.changed == 'true' && fromJson(needs.init.outputs.changed_addons)) || (needs.init.outputs.addons && fromJson(needs.init.outputs.addons)) || fromJson('[]') }}"
+          echo "Tasked Addons ${{ inputs.addon && format('["{0}"]', inputs.addon) || (needs.init.outputs.changed == 'true' && needs.init.outputs.changed_addons) || (needs.init.outputs.addons && needs.init.outputs.addons) || '[]' }}"
 
   information:
     name: Gather add-on information for selected add-ons
