@@ -213,12 +213,14 @@ jobs:
     needs: information
     outputs:
       build_matrix: ${{ steps.generate.outputs.matrix_json }}
+      manifest_matrix: ${{ steps.generate.outputs.manifest_matrix_json }}
     steps:
       - name: Generate matrix per addon information output
         id: generate
         run: |
           set -eo pipefail
           final_matrix_array="[]"
+          manifest_matrix_array="[]"
 
           # These are now JSON arrays of strings from the 'information' job
           slugs_list_json='${{ needs.information.outputs.slugs_list_json }}'
@@ -253,44 +255,54 @@ jobs:
             current_version="${versions_arr[$i]}"
             current_env="${envs_arr[$i]}"
 
-            current_arch_list_json_str="${arch_lists_arr[$i]}" # This is a string like '["amd64", "armv7"]'
-            current_build_file="${build_files_arr[$i]}"       # This is the filename, e.g., "myaddon/build.yaml"
+            current_build_file_path="${build_files_arr[$i]}" # This is the filename, e.g., "myaddon/build.yaml"
+            current_arch_list_json_str="${arch_lists_arr[$i]}"
 
-            mapfile -t current_addon_architectures < <(echo "$current_arch_list_json_str" | jq -r '.[]')
-
-            if [ ${#current_addon_architectures[@]} -eq 0 ]; then
-              echo "Warning: Addon $current_slug has no architectures from $current_arch_list_json_str. Skipping."
-              continue
-            fi
-
-            for arch in "${current_addon_architectures[@]}"; do
-            matrix_entry=$(jq -cn \
+            # Create the addon_info object for this addon
+            addon_info_object=$(jq -cn \
               --arg slug "$current_slug" \
               --arg target "$current_target" \
               --arg name "$current_name" \
               --arg description "$current_desc" \
-              --arg architecture "$arch" \
-              --arg build_file_path "$current_build_file" \
               --arg version "$current_version" \
               --arg env "$current_env" \
+              --arg build_file "$current_build_file_path" \
               '{
-                "addon_info": {
-                  "slug": $slug,
-                  "target": $target,
-                  "version": $version,
-                  "environment": $env,
-                  "name": $name,
-                  "description": $description,
-                  "build_file": $build_file_path
-                },
+                "slug": $slug,
+                "target": $target,
+                "name": $name,
+                "description": $description,
+                "version": $version,
+                "environment": $env,
+                "build_file": $build_file
+              }')
+
+            # Add this addon_info_object to the manifest_matrix_array
+            manifest_matrix_array=$(echo "$manifest_matrix_array" | jq -c --argjson entry "$addon_info_object" '. + [$entry]')
+
+            mapfile -t current_addon_architectures < <(echo "$current_arch_list_json_str" | jq -r '.[]')
+
+            if [ ${#current_addon_architectures[@]} -eq 0 ]; then
+              echo "Warning: Addon $current_slug has no architectures from $current_arch_list_json_str. Skipping for deploy matrix entries."
+              # Continue to next addon, manifest_matrix_array already has the addon_info
+              continue # for the outer loop if necessary, or just skip the inner arch loop
+            fi
+
+            for arch in "${current_addon_architectures[@]}"; do
+            deploy_matrix_entry=$(jq -cn \
+              --argjson addon_info "$addon_info_object" \
+              --arg architecture "$arch" \
+              '{
+                "addon_info": $addon_info,
                 "architecture": $architecture
               }')
-            final_matrix_array=$(echo "$final_matrix_array" | jq -c --argjson entry "$matrix_entry" '. + [$entry]')
+            final_matrix_array=$(echo "$final_matrix_array" | jq -c --argjson entry "$deploy_matrix_entry" '. + [$entry]')
             done
           done
           echo "matrix_json=$final_matrix_array" | tee -a $GITHUB_OUTPUT
+          echo "manifest_matrix_json=$manifest_matrix_array" | tee -a $GITHUB_OUTPUT
   deploy:
-    name: 👷 Build & Deploy ${{ matrix.architecture }}
+    name: 👷 Build & Deploy ${{ matrix.addon_info.name }} (${{ matrix.architecture }})
     needs:
       - build_matrix
     runs-on: ${{ contains(fromJson('["armhf", "armv7", "aarch64"]'), matrix.architecture) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
@@ -414,39 +426,50 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include: ${{ fromJson(needs.build_matrix.outputs.build_matrix) }}
-        # Only run on one architecture, since we're combining architectures below
-        exclude:
-          - architecture: aarch64
-          - architecture: armhf
-          - architecture: i386
-          - architecture: armv7
+        # Each item in this matrix is an addon_info_object
+        addon_config: ${{ fromJson(needs.build_matrix.outputs.manifest_matrix) }}
     outputs:
-      addon_info: ${{ matrix.addon_info }}
+      # Output the addon_info object as a JSON string for downstream jobs
+      addon_info: ${{ toJson(matrix.addon_config) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🏗 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.10.0
       - name: 🚀 Create manifest
+        env:
+          # Pass the full deploy matrix to easily find architectures for the current addon
+          DEPLOY_MATRIX_JSON: ${{ needs.build_matrix.outputs.build_matrix }}
+          CURRENT_ADDON_SLUG: ${{ matrix.addon_config.slug }}
+          CURRENT_ADDON_VERSION: ${{ matrix.addon_config.version }}
+          CURRENT_ADDON_ENVIRONMENT: ${{ matrix.addon_config.environment }}
+          GH_REPOSITORY_OWNER: ${{ github.repository_owner }}
         shell: bash
         # yamllint disable rule:line-length
         run: |
           declare -a images
 
-          for architecture in $( \
-            echo '${{ needs.build_matrix.outputs.build_matrix }}' | jq --raw-output '.[].architecture' \
-            | jq --raw-output '.[]'
+          # Extract architectures for the current addon from the deploy matrix
+          mapfile -t architectures_for_addon < <( \
+            echo "$DEPLOY_MATRIX_JSON" | \
+            jq -r --arg slug "$CURRENT_ADDON_SLUG" '.[] | select(.addon_info.slug == $slug) | .architecture' \
+          )
+
+          if [ ${#architectures_for_addon[@]} -eq 0 ]; then
+            echo "::error::No architectures found for addon $CURRENT_ADDON_SLUG in the deploy matrix."
+            exit 1
+          fi
+
+          for architecture_value in "${architectures_for_addon[@]}"; do
+            images+=("ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG/${architecture_value}:$CURRENT_ADDON_VERSION")
           ); do
-            images+=("ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}/${architecture}:${{ matrix.addon_info.version }}")
-          done
 
           docker manifest create \
-            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.environment }}" \
+            "ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG:$CURRENT_ADDON_ENVIRONMENT" \
             "${images[@]}"
 
           docker manifest create \
-            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.version }}" \
+            "ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG:$CURRENT_ADDON_VERSION" \
             "${images[@]}"
 
       - name: 🏗  Login to GitHub Container Registry
@@ -457,12 +480,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🚀 Push
+        env:
+          CURRENT_ADDON_SLUG: ${{ matrix.addon_config.slug }}
+          CURRENT_ADDON_VERSION: ${{ matrix.addon_config.version }}
+          CURRENT_ADDON_ENVIRONMENT: ${{ matrix.addon_config.environment }}
+          GH_REPOSITORY_OWNER: ${{ github.repository_owner }}
         # yamllint disable rule:line-length
         run: |
           docker manifest push \
-            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.environment }}"
+            "ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG:$CURRENT_ADDON_ENVIRONMENT"
           docker manifest push \
-            "ghcr.io/${{ github.repository_owner }}/${{ matrix.addon_info.slug }}:${{ matrix.addon_info.version }}"
+            "ghcr.io/$GH_REPOSITORY_OWNER/$CURRENT_ADDON_SLUG:$CURRENT_ADDON_VERSION"
 
   # Skipping publish jobs for now
   publish-edge:
@@ -473,8 +501,8 @@ jobs:
       - deploy
       - manifest
     strategy:
-      matrix:
-        addon_info: ${{ needs.manifest.outputs.addon_info }}
+      matrix: # This matrix will now correctly receive one addon_info object per addon
+        addon_info_json: ["${{ needs.manifest.outputs.addon_info }}"] # The output is a single JSON string per manifest job run
     environment:
       name: ${{ needs.information.outputs.environment }}
     runs-on: ubuntu-latest
@@ -487,10 +515,10 @@ jobs:
           event-type: update
           client-payload: >
             {
-              "addon": "${{ matrix.addon_info.slug }}",
-              "name": "${{ matrix.addon_info.slug }}",
+              "addon": "${{ fromJson(matrix.addon_info_json).slug }}",
+              "name": "${{ fromJson(matrix.addon_info_json).slug }}",
               "repository": "${{ github.repository }}",
-              "version": "${{ matrix.addon_info.version }}"
+              "version": "${{ fromJson(matrix.addon_info_json).version }}"
             }
 
   publish-beta:
@@ -506,8 +534,8 @@ jobs:
       - deploy
       - manifest
     strategy:
-      matrix:
-        addon_info: ${{ needs.manifest.outputs.addon_info }}
+      matrix: # This matrix will now correctly receive one addon_info object per addon
+        addon_info_json: ["${{ needs.manifest.outputs.addon_info }}"]
     environment:
       name: ${{ needs.information.outputs.environment }}
     runs-on: ubuntu-latest
@@ -520,8 +548,8 @@ jobs:
           event-type: update
           client-payload: >
             {
-              "addon": "${{ matrix.addon_info.slug }}",
-              "name": "${{ matrix.addon_info.slug }}",
+              "addon": "${{ fromJson(matrix.addon_info_json).slug }}",
+              "name": "${{ fromJson(matrix.addon_info_json).slug }}",
               "repository": "${{ github.repository }}",
               "version": "${{ github.event.release.tag_name }}"
             }
@@ -534,8 +562,8 @@ jobs:
       - deploy
       - manifest
     strategy:
-      matrix:
-        addon_info: ${{ needs.manifest.outputs.addon_info }}
+      matrix: # This matrix will now correctly receive one addon_info object per addon
+        addon_info_json: ["${{ needs.manifest.outputs.addon_info }}"]
     environment:
       name: ${{ needs.information.outputs.environment }}
     runs-on: ubuntu-latest
@@ -548,8 +576,8 @@ jobs:
           event-type: update
           client-payload: >
             {
-              "addon": "${{ matrix.addon_info.slug }}",
-              "name": "${{ matrix.addon_info.slug }}",
+              "addon": "${{ fromJson(matrix.addon_info_json).slug }}",
+              "name": "${{ fromJson(matrix.addon_info_json).slug }}",
               "repository": "${{ github.repository }}",
               "version": "${{ github.event.release.tag_name }}"
             }
