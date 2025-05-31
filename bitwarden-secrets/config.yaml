@@ -9,14 +9,10 @@ arch:
   - armhf
   - armv7
   - i386
-startup: application
-stage: stable
-boot: auto
 url: https://github.com/dcode/home-assistant-addons/tree/main/bitwarden-secrets
-hassio_role: default
 hassio_api: true
 map:
-  - config:rw
+  - addon_config:rw
 options:
   log_level: info
   bitwarden:
