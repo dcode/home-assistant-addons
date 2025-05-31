@@ -233,7 +233,7 @@ jobs:
           current_build="${{ needs.information.outputs.build }}"
 
           # Iterate over each architecture to generate a build matrix entry for this addon
-          for arch in $current_architectures; do
+          for arch in "${current_architectures[@]}"; do
             matrix_entry=$(jq -cn \
               --arg slug "$current_slug" \
               --arg target "$current_target" \
@@ -251,7 +251,7 @@ jobs:
                 },
                 "architecture": $architecture
               }')
-            matrix_array=$(echo "$matrix_array" | jq --argjson entry "$matrix_entry" '. + [$entry]')
+            matrix_array=$(echo "$matrix_array" | jq -c --argjson entry "$matrix_entry" '. + [$entry]')
           done
 
           echo "matrix_json=$matrix_array" | tee -a $GITHUB_OUTPUT
