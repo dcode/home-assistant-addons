@@ -127,7 +127,7 @@ jobs:
           if [[ ! -z "${{ inputs.slug }}" ]]; then
             slug="${{ inputs.slug }}"
           fi
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "slug=$slug" | tee -a "$GITHUB_OUTPUT"
 
   lint-addon:
     name: Lint Add-on
@@ -218,57 +218,43 @@ jobs:
     outputs:
       build_matrix: ${{ steps.generate.outputs.matrix_json }}
     steps:
-      - name: Generate matrix
+      - name: Generate matrix per addon information output
         id: generate
-        env:
-          SLUGS_JSON: ${{ toJson(needs.information.outputs.slug) }}
-          TARGETS_JSON: ${{ toJson(needs.information.outputs.target) }}
-          ARCHITECTURES_ARRAY_JSON: ${{ needs.information.outputs.architectures }}
-          NAMES_JSON: ${{ toJson(needs.information.outputs.name) }}
-          DESCRIPTIONS_JSON: ${{ toJson(needs.information.outputs.description) }}
-          BUILD_CONFIGS_JSON: ${{ toJson(needs.information.outputs.build) }}
         run: |
           matrix_array="[]"
 
-          mapfile -t slug_arr < <(echo "$SLUGS_JSON" | jq -r '.')
-          mapfile -t target_arr < <(echo "$TARGETS_JSON" | jq -r '.')
-          mapfile -t name_arr < <(echo "$NAMES_JSON" | jq -r '.')
-          mapfile -t desc_arr < <(echo "$DESCRIPTIONS_JSON" | jq -r '.')
-          mapfile -t build_arr < <(echo "$BUILD_CONFIGS_JSON" | jq -r '.')
-          mapfile -t arch_json_str_arr < <(echo "$ARCHITECTURES_JSON_ARRAY_JSON" | jq -r '.')
+          # Create a bash array from the architectures JSON array string
+          mapfile -t current_architectures < <(echo "${{ needs.information.outputs.architectures }}" | jq -r '.[]')
 
-          for i in "${!slug_arr[@]}"; do
-            current_slug="${slug_arr[$i]}"
-            current_target="${target_arr[$i]}"
-            current_arch_json_str="${arch_json_str_arr[$i]}"
-            current_name="${name_arr[$i]}"
-            current_desc="${desc_arr[$i]}"
-            current_build_json_str="${build_arr[$i]}"
+          current_slug="${{ needs.information.outputs.slug }}"
+          current_target="${{ needs.information.outputs.target }}"
+          current_name="${{ needs.information.outputs.name }}"
+          current_desc="${{ needs.information.outputs.description }}"
+          current_build="${{ needs.information.outputs.build }}"
 
-            current_architectures=$(echo "$current_arch_json_str" | jq -r '.[]')
-            for arch in $current_architectures; do
-              matrix_entry=$(jq -n \
-                --arg slug "$current_slug" \
-                --arg target "$current_target" \
-                --arg name "$current_name" \
-                --arg description "$current_desc" \
-                --arg architecture "$arch" \
-                --arg build_config_str "$current_build_json_str" \
-                '{
-                  "addon_info": {
-                    "slug": $slug,
-                    "target": $target,
-                    "name": $name,
-                    "description": $description,
-                    "build": $build_config_str
-                  },
-                  "architecture": $architecture
-                }')
-              matrix_array=$(echo "$matrix_array" | jq --argjson entry "$matrix_entry" '. + [$entry]')
-            done
+          # Iterate over each architecture to generate a build matrix entry for this addon
+          for arch in $current_architectures; do
+            matrix_entry=$(jq -cn \
+              --arg slug "$current_slug" \
+              --arg target "$current_target" \
+              --arg name "$current_name" \
+              --arg description "$current_desc" \
+              --arg architecture "$arch" \
+              --arg build_config "$current_build" \
+              '{
+                "addon_info": {
+                  "slug": $slug,
+                  "target": $target,
+                  "name": $name,
+                  "description": $description,
+                  "build": $build_config
+                },
+                "architecture": $architecture
+              }')
+            matrix_array=$(echo "$matrix_array" | jq --argjson entry "$matrix_entry" '. + [$entry]')
           done
-          echo "matrix=$matrix_array" >> $GITHUB_OUTPUT
-          echo "Generated matrix: $matrix_array"
+
+          echo "matrix_json=$matrix_array" | tee -a $GITHUB_OUTPUT
   build:
     name: Build ${{ matrix.addon_info.name }} (${{ matrix.architecture }})
     needs:
@@ -301,20 +287,20 @@ jobs:
       - name: ℹ️ Compose build flags
         id: flags
         run: |
-          echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
+          echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" | tee -a "$GITHUB_OUTPUT"
           from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon_info.build }}")
-          echo "from=${from}" >> "$GITHUB_OUTPUT"
+          echo "from=${from}" | tee -a "$GITHUB_OUTPUT"
 
           if [[ "${{ matrix.architecture}}" = "amd64" ]]; then
-            echo "platform=linux/amd64" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/amd64" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "i386" ]]; then
-            echo "platform=linux/386" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/386" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "armhf" ]]; then
-            echo "platform=linux/arm/v6" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/arm/v6" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "armv7" ]]; then
-            echo "platform=linux/arm/v7" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/arm/v7" | tee -a "$GITHUB_OUTPUT"
           elif [[ "${{ matrix.architecture }}" = "aarch64" ]]; then
-            echo "platform=linux/arm64/v8" >> "$GITHUB_OUTPUT"
+            echo "platform=linux/arm64/v8" | tee -a "$GITHUB_OUTPUT"
           else
             echo "::error ::Could not determine platform for architecture ${{ matrix.architecture }}"
             exit 1
@@ -345,9 +331,9 @@ jobs:
 
           } > "$COMBINED_ARGS_TEMP_FILE"
 
-          echo -n "args=" >> "$GITHUB_OUTPUT"
+          echo -n "args=" | tee -a "$GITHUB_OUTPUT"
           # Filter out any blank lines from the final list of arguments
-          awk 'NF' "$COMBINED_ARGS_TEMP_FILE" >> "$GITHUB_OUTPUT"
+          awk 'NF' "$COMBINED_ARGS_TEMP_FILE" | tee -a "$GITHUB_OUTPUT"
       - name: ⤵️ Download base image
         if: steps.flags.outputs.from != 'null'
         run: docker pull "${{ steps.flags.outputs.from }}"
