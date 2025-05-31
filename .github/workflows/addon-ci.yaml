@@ -132,9 +132,13 @@ jobs:
 
   lint-addon:
     name: Lint Add-on
+    runs-on: ubuntu-latest
     needs:
       - information
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target_path: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -142,39 +146,56 @@ jobs:
         uses: frenck/action-addon-linter@v2.18.0
         with:
           community: false # true means build for hassio-addons repos
-          path: "./${{ needs.information.outputs.target }}"
+          path: ${{ matrix.target_path }}
 
   lint-hadolint:
     name: Hadolint
+    runs-on: ubuntu-latest
     needs:
       - information
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target_path: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run Hadolint
         uses: brpaz/hadolint-action@v1.5.0
         with:
-          dockerfile: "./${{ needs.information.outputs.target }}/Dockerfile"
+          dockerfile: "${{ matrix.target_path }}/Dockerfile"
 
   lint-json:
     name: JSON Lint
     runs-on: ubuntu-latest
     needs:
       - information
+    strategy:
+      fail-fast: false
+      matrix:
+        target_path: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run JQ
         run: |
           shopt -s globstar
-          cat "${{ needs.information.outputs.target }}/**/*.json" | jq '.'
+          # Ensure path exists before catting, otherwise it might fail if no JSON files
+          if [ -d "${{ matrix.target_path }}" ]; then
+            find "${{ matrix.target_path }}" -name '*.json' -print0 | xargs -0 -r cat | jq '.'
+          else
+            echo "Directory ${{ matrix.target_path }} not found. Skipping JSON lint."
+          fi
 
   lint-shellcheck:
     name: Shellcheck
     runs-on: ubuntu-latest
     needs:
       - information
+    strategy:
+      fail-fast: false
+      matrix:
+        target_path: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -183,33 +204,41 @@ jobs:
         env:
           SHELLCHECK_OPTS: -s bash
         with:
-          scandir: ${{ needs.information.outputs.target }}
+          scandir: ${{ matrix.target_path }}
 
   lint-yamllint:
     name: YAMLLint
     runs-on: ubuntu-latest
     needs:
       - information
+    strategy:
+      fail-fast: false
+      matrix:
+        target_path: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run YAMLLint
         uses: frenck/action-yamllint@v1.5
         with:
-          path: ${{ needs.information.outputs.target }}
+          path: ${{ matrix.target_path }}
 
   lint-prettier:
     name: Prettier
     runs-on: ubuntu-latest
     needs:
       - information
+    strategy:
+      fail-fast: false
+      matrix:
+        target_path: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run Prettier
         uses: creyD/prettier_action@v4.5
         with:
-          prettier_options: --write ${{ needs.information.outputs.target }}/**/*.{json,js,md,yaml}
+          prettier_options: --write ${{ matrix.target_path }}/**/*.{json,js,md,yaml}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build_matrix:
