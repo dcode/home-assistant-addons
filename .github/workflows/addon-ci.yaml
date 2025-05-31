@@ -144,14 +144,14 @@ jobs:
               # Use inputs.slug to override for all, otherwise use slug from config
               final_slug="${{ inputs.slug || '$current_slug_from_config' }}"
 
-              all_slugs_arr+=("$(jq -n --arg s "$final_slug" '$s')")
-              all_targets_arr+=("$(jq -n --arg s "$addon_path" '$s')")
-              all_names_arr+=("$(jq -n --arg s "$(yq eval '.name' "$config_file")" '$s')")
-              all_descriptions_arr+=("$(jq -n --arg s "$(yq eval '.description' "$config_file")" '$s')")
+              all_slugs_arr+=("$(jq -cn --arg s "$final_slug" '$s')")
+              all_targets_arr+=("$(jq -cn --arg s "$addon_path" '$s')")
+              all_names_arr+=("$(jq -cn --arg s "$(yq eval '.name' "$config_file")" '$s')")
+              all_descriptions_arr+=("$(jq -cn --arg s "$(yq eval '.description' "$config_file")" '$s')")
               # .arch is an array in yaml, to_json converts it to a JSON array string e.g. "[\"amd64\",\"armv7\"]"
-              all_architectures_arr+=("$(yq eval '.arch | to_json' "$config_file")")
-              all_build_files_arr+=("$(jq -n --arg s "$build_file_path_convention" '$s')")
-              # all_base_image_signers_arr+=("$(jq -n --arg s "signer_for_${final_slug}" '$s')") # Placeholder
+              all_architectures_arr+=("$(yq eval '.arch | to_json' "$config_file" | jq -c .)")
+              all_build_files_arr+=("$(jq -cn --arg s "$build_file_path_convention" '$s')")
+              # all_base_image_signers_arr+=("$(jq -cn --arg s "signer_for_${final_slug}" '$s')") # Placeholder
             done
           fi
 
