@@ -285,7 +285,7 @@ jobs:
       - name: Generate matrix per addon information output
         id: generate
         run: |
-          set -exo pipefail
+          set -eo pipefail
           final_matrix_array="[]"
 
           # These are now JSON arrays of strings from the 'information' job
@@ -305,7 +305,7 @@ jobs:
           mapfile -t names_arr < <(echo "$names_list_json" | jq -r '.[]')
           mapfile -t descriptions_arr < <(echo "$descriptions_list_json" | jq -r '.[]')
           # Each element of arch_lists_arr will be a JSON string like "[\"amd64\",\"armv7\"]"
-          mapfile -t arch_lists_arr < <(echo "$architectures_list_of_json_arrays_str" | jq -r '.[]')
+          mapfile -t arch_lists_arr < <(echo "$architectures_list_of_json_arrays_str" | jq -c '.[]')
           mapfile -t build_files_arr < <(echo "$build_files_list_json" | jq -r '.[]')
 
           for i in "${!slugs_arr[@]}"; do
