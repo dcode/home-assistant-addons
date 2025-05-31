@@ -224,7 +224,7 @@ jobs:
           matrix_array="[]"
 
           # Create a bash array from the architectures JSON array string
-          mapfile -t current_architectures < <(echo "${{ needs.information.outputs.architectures }}" | jq -r '.[]')
+          mapfile -t current_architectures < <(echo '${{ needs.information.outputs.architectures }}' | jq -r '.[]')
 
           current_slug="${{ needs.information.outputs.slug }}"
           current_target="${{ needs.information.outputs.target }}"
