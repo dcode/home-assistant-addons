@@ -68,19 +68,19 @@ jobs:
           if [[ -n "${all_addons_json_string}" ]]; then
             echo "all_addons_json=[${all_addons_json_string}]" | tee "$GITHUB_OUTPUT"
           else
-            echo "all_addons_json=[]" >> "$GITHUB_OUTPUT"
+            echo "all_addons_json=[]" | tee "$GITHUB_OUTPUT"
           fi
 
           # Prepare JSON array string for changed addons and set 'changed' flag
           changed_addons_json_string=$(echo "${changed_addons_array[@]}" | sed 's/,$//')
           if [[ -n "${changed_addons_json_string}" ]]; then
             echo "Changed add-ons: [${changed_addons_json_string}]";
-            echo "changed=true" >> "$GITHUB_OUTPUT";
-            echo "changed_addons=[${changed_addons_json_string}]" >> "$GITHUB_OUTPUT";
+            echo "changed=true" | tee "$GITHUB_OUTPUT";
+            echo "changed_addons=[${changed_addons_json_string}]" | tee "$GITHUB_OUTPUT";
           else
             echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
-            echo "changed=false" >> "$GITHUB_OUTPUT"; # Explicitly set changed to false
-            echo "changed_addons=[]" >> "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
+            echo "changed=false" | tee "$GITHUB_OUTPUT"; # Explicitly set changed to false
+            echo "changed_addons=[]" | tee "$GITHUB_OUTPUT"; # Output empty array for changed_addons if none
           fi
   information:
     name: Gather add-on information for selected add-ons
@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: ${{ fromJson(needs.information.outputs.target) }}
+        target: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -139,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: ${{ fromJson(needs.information.outputs.target) }}
+        target: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -155,7 +155,7 @@ jobs:
       - information
     strategy:
       matrix:
-        target: ${{ fromJson(needs.information.outputs.target) }}
+        target: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -171,7 +171,7 @@ jobs:
       - information
     strategy:
       matrix:
-        target: ${{ fromJson(needs.information.outputs.target)}}
+        target: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -189,7 +189,7 @@ jobs:
       - information
     strategy:
       matrix:
-        target: ${{ fromJson(needs.information.outputs.target)}}
+        target: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -205,7 +205,7 @@ jobs:
       - information
     strategy:
       matrix:
-        target: ${{ fromJson(needs.information.outputs.target)}}
+        target: ${{ needs.information.outputs.target }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
