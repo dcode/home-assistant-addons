@@ -241,19 +241,19 @@ jobs:
         env:
           SLUGS_JSON: ${{ toJson(needs.information.outputs.slug) }}
           TARGETS_JSON: ${{ toJson(needs.information.outputs.target) }}
-          ARCHITECTURES_JSON_ARRAY_JSON: ${{ toJson(needs.information.outputs.architectures) }}
+          ARCHITECTURES_JSON_ARRAY_JSON: ${{ needs.information.outputs.architectures }}
           NAMES_JSON: ${{ toJson(needs.information.outputs.name) }}
           DESCRIPTIONS_JSON: ${{ toJson(needs.information.outputs.description) }}
           BUILD_CONFIGS_JSON_ARRAY_JSON: ${{ toJson(needs.information.outputs.build) }}
         run: |
           matrix_array="[]"
 
-          mapfile -t slug_arr < <(echo "$SLUGS_JSON" | jq -r '.[]')
-          mapfile -t target_arr < <(echo "$TARGETS_JSON" | jq -r '.[]')
+          mapfile -t slug_arr < <(echo "$SLUGS_JSON" | jq -r '.')
+          mapfile -t target_arr < <(echo "$TARGETS_JSON" | jq -r '.')
           mapfile -t arch_json_str_arr < <(echo "$ARCHITECTURES_JSON_ARRAY_JSON" | jq -r '.[]')
-          mapfile -t name_arr < <(echo "$NAMES_JSON" | jq -r '.[]')
-          mapfile -t desc_arr < <(echo "$DESCRIPTIONS_JSON" | jq -r '.[]')
-          mapfile -t build_json_str_arr < <(echo "$BUILD_CONFIGS_JSON_ARRAY_JSON" | jq -r '.[]')
+          mapfile -t name_arr < <(echo "$NAMES_JSON" | jq -r '.')
+          mapfile -t desc_arr < <(echo "$DESCRIPTIONS_JSON" | jq -r '.')
+          mapfile -t build_json_str_arr < <(echo "$BUILD_CONFIGS_JSON_ARRAY_JSON" | jq -r '.')
 
           for i in "${!slug_arr[@]}"; do
             current_slug="${slug_arr[$i]}"
