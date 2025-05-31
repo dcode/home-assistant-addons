@@ -9,15 +9,65 @@ on:
         description: Overrides the detected slug
         required: false
         type: string
+env:
+  MONITORED_FILES: "build.yaml build.json config.yaml config.json Dockerfile rootfs"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  init:
+    runs-on: ubuntu-latest
+    name: Initialize builds
+    outputs:
+      changed_addons: ${{ steps.changed_addons.outputs.addons }}
+      changed: ${{ steps.changed_addons.outputs.changed }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed_files
+        uses: jitterbit/get-changed-files@v1
+
+      - name: Find add-on directories
+        id: addons
+        uses: home-assistant/actions/helpers/find-addons@master
+
+      - name: Get changed add-ons
+        id: changed_addons
+        run: |
+          declare -a changed_addons
+          for addon in ${{ steps.addons.outputs.addons }}; do
+            if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon ]]; then
+              for file in ${{ env.MONITORED_FILES }}; do
+                  if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
+                    if [[ ! "${changed_addons[@]}" =~ $addon ]]; then
+                      changed_addons+=("\"${addon}\",");
+                    fi
+                  fi
+              done
+            fi
+          done
+
+          changed=$(echo ${changed_addons[@]} | rev | cut -c 2- | rev)
+
+          if [[ -n ${changed} ]]; then
+            echo "Changed add-ons: $changed";
+            echo "changed=true" >> $GITHUB_OUTPUT;
+            echo "addons=[$changed]" >> $GITHUB_OUTPUT;
+          else
+            echo "No add-on had any monitored files changed (${{ env.MONITORED_FILES }})";
+          fi
   information:
     name: Gather add-on information
     runs-on: ubuntu-latest
+    needs:
+      - init
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.init.outputs.changed_addons) }}
     outputs:
       architectures: ${{ steps.information.outputs.architectures }}
       base_image_signer: ${{ steps.information.outputs.codenotary_base_image }}
@@ -32,6 +82,8 @@ jobs:
       - name: 🚀 Run add-on information action
         id: information
         uses: frenck/action-addon-information@v1.4.2
+        with:
+          path: "./${{matrix.addon}}"
       - name: 🚀 Process possible slug override
         id: override
         run: |
@@ -46,6 +98,9 @@ jobs:
     needs:
       - information
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.information.outputs.target) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -53,35 +108,48 @@ jobs:
         uses: frenck/action-addon-linter@v2.18.0
         with:
           community: true
-          path: "./${{ needs.information.outputs.target }}"
+          path: "./${{ matrix.target }}"
 
   lint-hadolint:
     name: Hadolint
     needs:
       - information
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.information.outputs.target) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run Hadolint
         uses: brpaz/hadolint-action@v1.5.0
         with:
-          dockerfile: "./${{ needs.information.outputs.target }}/Dockerfile"
+          dockerfile: "./${{ matrix.target }}/Dockerfile"
 
   lint-json:
     name: JSON Lint
     runs-on: ubuntu-latest
+    needs:
+      - information
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.information.outputs.target) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run JQ
         run: |
           shopt -s globstar
-          cat **/*.json | jq '.'
+          cat "${{matrix.target}}/**/*.json" | jq '.'
 
   lint-shellcheck:
     name: Shellcheck
     runs-on: ubuntu-latest
+    needs:
+      - information
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.information.outputs)}}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -89,26 +157,40 @@ jobs:
         uses: ludeeus/action-shellcheck@2.0.0
         env:
           SHELLCHECK_OPTS: -s bash
+        with:
+          scandir: ${{ matrix.addon.target }}
 
   lint-yamllint:
     name: YAMLLint
     runs-on: ubuntu-latest
+    needs:
+      - information
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.information.outputs)}}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run YAMLLint
         uses: frenck/action-yamllint@v1.5
+        with:
+          path: ${{ matrix.addon.target }}
 
   lint-prettier:
     name: Prettier
     runs-on: ubuntu-latest
+    needs:
+      - information
+    strategy:
+      matrix:
+        addon: ${{ fromJson(needs.information.outputs)}}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
       - name: 🚀 Run Prettier
         uses: creyD/prettier_action@v4.5
         with:
-          prettier_options: --write **/*.{json,js,md,yaml}
+          prettier_options: --write ${{matrix.addon.target}}/**/*.{json,js,md,yaml}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -126,6 +208,7 @@ jobs:
     strategy:
       matrix:
         architecture: ${{ fromJson(needs.information.outputs.architectures) }}
+        addon: ${{ fromJson(needs.information.outputs) }}
     steps:
       - name: ⤵️ Check out code from GitHub
         uses: actions/checkout@v4
@@ -145,7 +228,7 @@ jobs:
         id: flags
         run: |
           echo "date=$(date +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
-          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ needs.information.outputs.build }}")
+          from=$(yq --no-colors eval ".build_from.${{ matrix.architecture }}" "${{ matrix.addon }}/build.yaml")
           echo "from=${from}" >> "$GITHUB_OUTPUT"
 
           if [[ "${{ matrix.architecture}}" = "amd64" ]]; then
@@ -175,15 +258,15 @@ jobs:
             # Part 1: Args from build.yaml (e.g., needs.information.outputs.build)
             # yq extracts the .args map, formats as 'key: value' lines, then sed converts to 'key=value'.
             # If '.args' is not present or empty in the build YAML, this command sequence produces no output and exits cleanly.
-            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ needs.information.outputs.build }}" | sed -r 's#: #=#'
+            yq --no-colors '.args | to_entries | .[] | .key + ": " + .value' "${{ matrix.addon }}/build.yaml" | sed -r 's#: #=#'
 
             # Part 2: Static args
             # Each echo adds a KEY=VALUE pair followed by a newline.
             echo "BUILD_ARCH=${{ matrix.architecture }}"
             echo "BUILD_DATE=${{ steps.flags.outputs.date }}"
-            echo "BUILD_DESCRIPTION=${{ needs.information.outputs.description }}"
+            echo "BUILD_DESCRIPTION=${{ matrix.addon.description }}"
             echo "BUILD_FROM=${{ steps.flags.outputs.from }}"
-            echo "BUILD_NAME=${{ needs.information.outputs.name }}"
+            echo "BUILD_NAME=${{ matrix.addon.name }}"
             echo "BUILD_REF=${{ github.sha }}"
             echo "BUILD_REPOSITORY=${{ github.repository }}"
             echo "BUILD_VERSION=edge"
@@ -199,11 +282,11 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           push: false
-          context: ${{ needs.information.outputs.target }}
-          file: ${{ needs.information.outputs.target }}/Dockerfile
+          context: ${{ matrix.addon.target }}
+          file: ${{ matrix.addon.target }}/Dockerfile
           cache-from: |
             type=local,src=/tmp/.docker-cache
-            ghcr.io/${{ github.repository_owner }}/${{ needs.information.outputs.slug }}/${{ matrix.architecture }}:edge
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.addon.slug }}/${{ matrix.architecture }}:edge
           cache-to: type=local,mode=max,dest=/tmp/.docker-cache-new
           platforms: ${{ steps.flags.outputs.platform }}
           build-args: ${{ steps.buildargs.outputs.args }}
