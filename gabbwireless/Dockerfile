@@ -15,7 +15,7 @@ WORKDIR /app
 
 RUN curl -o /tmp/gabbwireless_mqtt.tar.gz \
   -L "https://github.com/jaycollett/gabbwireless_mqtt/archive/refs/tags/${GABBWIRELESS_REF}.tar.gz" \
-  && tar xzvf /tmp/gabbwireless_mqtt.tar.gz -C /app --strip "gabbwireless_mqtt-${GABBWIRELESS_REF}/" \
+  && tar xzvf /tmp/gabbwireless_mqtt.tar.gz -C /app --strip-components 1 \
   && rm /tmp/gabbwireless_mqtt.tar.gz \
   && python3 -m pip install --no-cache-dir -r requirements.txt
 
