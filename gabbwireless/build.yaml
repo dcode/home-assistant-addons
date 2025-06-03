@@ -1,0 +1,17 @@
+---
+build_from:
+  aarch64: ghcr.io/hassio-addons/base-python:stable
+  amd64: ghcr.io/hassio-addons/base-python:stable
+  armhf: ghcr.io/hassio-addons/base-python:stable
+  armv7: ghcr.io/hassio-addons/base-python:stable
+  i386: ghcr.io/hassio-addons/base-python:stable
+labels:
+  maintainer: "Derek Ditch <dcode@users.noreply.github.com>"
+  org.opencontainers.image.title: "Gabb Wireless Addon for Home Assistant"
+  org.opencontainers.image.authors: "Derek Ditch <dcode@users.noreply.github.com>"
+  org.opencontainers.image.licenses: "MIT"
+  org.opencontainers.image.vendor: "Derek Ditch"
+  org.opencontainers.image.source: "https://github.com/dcode/home-assistant-addons"
+  org.opencontainers.image.documentation: "https://github.com/dcode/home-assistant-addons/blob/master/gabbwireless/README.md"
+args:
+  GABBWIRELESS_REF: 0.1.1

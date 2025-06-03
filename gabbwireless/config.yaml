@@ -1,0 +1,31 @@
+---
+name: Gabb Wireless
+version: "0.1.1"
+slug: addon-gabbwireless
+description: Gabb Wireless provides cellular devices for kids with parental controls.
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+image: "ghcr.io/dcode/addon-gabbwireless"
+init: false
+url: https://github.com/dcode/home-assistant-addons/tree/main/gabbwireless
+homeassistant_api: true
+panel_icon: mdi:devices
+map:
+  - addon_config:rw
+  - share
+  - ssl:rw
+options:
+  debug: false
+  env_vars: []
+schema:
+  debug: bool
+  gabb_username: str
+  gabb_password: str
+  env_vars:
+    - str
+services:
+  - mqtt:need
