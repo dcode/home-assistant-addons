@@ -69,9 +69,9 @@ jobs:
             fi
 
             # Check for changes in monitored files in this add-on
-            if [[ "${{ steps.changed_files.outcome == 'success' && steps.changed_files.outputs.all || '' }}" =~ $addon ]]; then
+            if [[ "${{ steps.changed_files.outcome == 'success' && steps.changed_files.outputs.all_changed_files || '' }}" =~ $addon ]]; then
               for file in ${{ env.MONITORED_FILES }}; do
-                  if [[ "${{ steps.changed_files.outputs.all }}" =~ $addon/$file ]]; then
+                  if [[ "${{ steps.changed_files.outputs.all_changed_files }}" =~ $addon/$file ]]; then
                     if [[ ! "${changed_addons_list[@]}" =~ $addon ]]; then # Use renamed variable
                       changed_addons_list+=("\"${addon}\","); # Use renamed variable
                     fi
