@@ -51,8 +51,7 @@ jobs:
 
       - name: Get changed files
         id: changed_files
-        continue-on-error: true
-        uses: jitterbit/get-changed-files@v1
+        uses: tj-actions/changed-files@v46.0.5
 
       - name: Find add-on directories
         id: addons
