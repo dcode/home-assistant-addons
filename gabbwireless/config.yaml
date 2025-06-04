@@ -1,6 +1,6 @@
 ---
 name: Gabb Wireless
-version: "0.1.1"
+version: "edge"
 slug: addon-gabbwireless
 description: Gabb Wireless provides cellular devices for kids with parental controls.
 arch:
