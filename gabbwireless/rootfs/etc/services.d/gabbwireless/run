@@ -22,10 +22,6 @@ sleep 1
 if [ -v HASSIO_TOKEN ]; then
   declare -r CONFIG_PATH=/data/options.json
 
-  # If addon mode is detected but config isn't available exit immediately
-  bashio::config.require 'mqtt_host'
-  bashio::config.require 'mqtt_port'
-
   RUNMODE="addon"
   readonly RUNMODE
   DEBUG=$(bashio::config "debug" || false)
