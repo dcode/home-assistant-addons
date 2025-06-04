@@ -1,7 +1,7 @@
 #!/command/with-contenv bashio
 # shellcheck shell=bash disable=SC2034
 # =============================================================================
-# ring-mqtt run script for s6-init
+# gabbwireless run script for s6-init
 #
 # This script automatically detects if it is running as the Home Assistant
 # addon or a standard docker environment and sets configuration variables as
@@ -23,7 +23,8 @@ if [ -v HASSIO_TOKEN ]; then
   declare -r CONFIG_PATH=/data/options.json
 
   # If addon mode is detected but config isn't available exit immediately
-  bashio::config.require 'mqtt_url'
+  bashio::config.require 'mqtt_host'
+  bashio::config.require 'mqtt_port'
 
   RUNMODE="addon"
   readonly RUNMODE

@@ -23,9 +23,9 @@ options:
   env_vars: []
 schema:
   debug: bool
-  gabb_username: str
-  gabb_password: str
+  gabb_username: email
+  gabb_password: password
   env_vars:
-    - str
+    - "match(^\\w+=.+$)" # Only allow VAR=VALUE
 services:
   - mqtt:need
