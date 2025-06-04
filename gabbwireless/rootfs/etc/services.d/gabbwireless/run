@@ -28,11 +28,14 @@ if [ -v HASSIO_TOKEN ]; then
   readonly DEBUG
 
   # Export MQTT service discovery data for publisher script
+  bashio::log.info "MQTT service available? $(bashio::services.available)"
   if bashio::services.available 'mqtt'; then
     MQTT_BROKER=$(bashio::services mqtt "host")
     MQTT_PORT=$(bashio::services mqtt "port")
     MQTT_USERNAME=$(bashio::services mqtt "username")
     MQTT_PASSWORD=$(bashio::services mqtt "password")
+
+    bashio::log.info "MQTT connection details: host=${MQTT_BROKER} port=${MQTT_PORT} user=${MQTT_USERNAME}"
   fi
 
   ENV_VARS=$(bashio::config "env_vars")
@@ -68,6 +71,8 @@ echo "-------------------------------------------------------"
 echo "gabbwireless version: $(awk '/__version__/ { print $3}' gabb/__init__.py | sed 's/"//g')"
 echo "Python version $(python3 --version | awk '{print $2}')"
 echo "-------------------------------------------------------"
+
+export MQTT_BROKER MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
 
 bashio::log.info "Starting Gabb Wireless..."
 if [ -z "$ENV_VARS" ]; then
