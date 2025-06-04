@@ -35,7 +35,7 @@ if [ -v HASSIO_TOKEN ]; then
     MQTT_PASSWORD=$(bashio::services mqtt "password")
   fi
 
-  ENV_VARS=$(basshio::config "env_vars")
+  ENV_VARS=$(bashio::config "env_vars")
   if [ -z "$ENV_VARS" ]; then
     bashio::log.info "No additional environment variables found"
   else
