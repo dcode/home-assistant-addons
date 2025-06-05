@@ -31,6 +31,7 @@ if [ -v HASSIO_TOKEN ]; then
   readonly RUNMODE
   LOG_LEVEL=$(bashio::config "log_level" || "info")
   readonly LOG_LEVEL
+  bashio::log.level "${LOG_LEVEL}"
 
   # Export MQTT service discovery data for publisher script
   bashio::log.info "MQTT service available? $(bashio::services.available)"
@@ -83,8 +84,10 @@ export MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD LOG_LEVEL
 
 bashio::log.info "Starting Gabb Wireless..."
 if [ -z "$ENV_VARS" ]; then
-  bashio::log.info "Running Gabb Wireless env_vars"
+  bashio::log.info "Running Gabb Wireless"
   exec python3 ./gabb_mqtt_publisher.py
 else
+  bashio::log.info "Running Gabb Wireless with additional environment variables"
+  bashio::log.debug "env ${ENV_VARS[*]} python3 ./gabb_mqtt_publisher.py"
   env "${ENV_VARS[@]}" python3 ./gabb_mqtt_publisher.py
 fi
