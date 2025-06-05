@@ -13,7 +13,7 @@ set -euo pipefail
 declare LOG_LEVEL RUNMODE
 declare GABB_USERNAME GABB_PASSWORD REFRESH_RATE
 declare MQTT_BROKER MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
-declare ENV_VARS
+declare -a ADDITIONAL_ENV_VARS
 
 # Delay to keep logs messages from overlapping with s6 logs
 sleep 1
@@ -29,9 +29,9 @@ if [ -v HASSIO_TOKEN ]; then
 
   RUNMODE="addon"
   readonly RUNMODE
-  LOG_LEVEL=$(bashio::config "log_level" || "info")
+  LOG_LEVEL=$(bashio::config "log_level" "info")
   readonly LOG_LEVEL
-  bashio::log.level "${LOG_LEVEL}"
+  bashio::log.level "${LOG_LEVEL}" "info"
 
   # Export MQTT service discovery data for publisher script
   bashio::log.info "MQTT service available? $(bashio::services.available)"
@@ -44,11 +44,11 @@ if [ -v HASSIO_TOKEN ]; then
     bashio::log.info "MQTT connection details: host=${MQTT_HOST} port=${MQTT_PORT} user=${MQTT_USERNAME}"
   fi
 
-  ENV_VARS=$(bashio::config "env_vars")
-  if [ -z "$ENV_VARS" ]; then
+  read -r -a ADDITIONAL_ENV_VARS <<<"$(bashio::config "env_vars")"
+  if [ ${#ADDITIONAL_ENV_VARS[@]} -eq 0 ]; then
     bashio::log.info "No additional environment variables found"
   else
-    bashio::log.info "Extracted variables ${ENV_VARS}"
+    bashio::log.info "Extracted variables ${ADDITIONAL_ENV_VARS[*]}"
   fi
 
   export ADDONHOSTNAME=$HOSTNAME
@@ -71,7 +71,7 @@ fi
 
 readonly GABB_USERNAME GABB_PASSWORD REFRESH_RATE
 readonly MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
-readonly ENV_VARS
+readonly ADDITIONAL_ENV_VARS
 
 cd /app/
 
@@ -83,11 +83,11 @@ echo "-------------------------------------------------------"
 export MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD LOG_LEVEL
 
 bashio::log.info "Starting Gabb Wireless..."
-if [ -z "$ENV_VARS" ]; then
+if [ ${#ADDITIONAL_ENV_VARS[@]} -eq 0 ]; then
   bashio::log.info "Running Gabb Wireless"
   exec python3 ./gabb_mqtt_publisher.py
 else
   bashio::log.info "Running Gabb Wireless with additional environment variables"
-  bashio::log.debug "env ${ENV_VARS[*]} python3 ./gabb_mqtt_publisher.py"
-  env "${ENV_VARS[@]}" python3 ./gabb_mqtt_publisher.py
+  bashio::log.debug "env ${ADDITIONAL_ENV_VARS[*]} python3 ./gabb_mqtt_publisher.py"
+  env "${ADDITIONAL_ENV_VARS[@]}" python3 ./gabb_mqtt_publisher.py
 fi
