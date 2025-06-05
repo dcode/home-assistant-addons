@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-declare DEBUG RUNMODE
+declare LOG_LEVEL RUNMODE
 declare GABB_USERNAME GABB_PASSWORD REFRESH_RATE
 declare MQTT_BROKER MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
 declare ENV_VARS
@@ -24,18 +24,18 @@ if [ -v HASSIO_TOKEN ]; then
 
   RUNMODE="addon"
   readonly RUNMODE
-  DEBUG=$(bashio::config "debug" || false)
-  readonly DEBUG
+  LOG_LEVEL=$(bashio::config "log_level" || "info")
+  readonly LOG_LEVEL
 
   # Export MQTT service discovery data for publisher script
   bashio::log.info "MQTT service available? $(bashio::services.available)"
   if bashio::services.available 'mqtt'; then
-    MQTT_BROKER=$(bashio::services mqtt "host")
+    MQTT_HOST=$(bashio::services mqtt "host")
     MQTT_PORT=$(bashio::services mqtt "port")
     MQTT_USERNAME=$(bashio::services mqtt "username")
     MQTT_PASSWORD=$(bashio::services mqtt "password")
 
-    bashio::log.info "MQTT connection details: host=${MQTT_BROKER} port=${MQTT_PORT} user=${MQTT_USERNAME}"
+    bashio::log.info "MQTT connection details: host=${MQTT_HOST} port=${MQTT_PORT} user=${MQTT_USERNAME}"
   fi
 
   ENV_VARS=$(bashio::config "env_vars")
@@ -55,10 +55,12 @@ else
   GABB_PASSWORD="${GABB_PASSWORD:-default_password}"
   REFRESH_RATE="${REFRESH_RATE:-1}"
 
-  MQTT_BROKER="${MQTT_BROKER:-mqtt.example.com}"
+  MQTT_HOST="${MQTT_HOST:-mqtt.example.com}"
   MQTT_PORT="${MQTT_PORT:-1883}"
   MQTT_USERNAME="${MQTT_USERNAME:-mqtt_user}"
   MQTT_PASSWORD="${MQTT_PASSWORD:-mqtt_password}"
+
+  LOG_LEVEL="${LOG_LEVEL:-INFO}"
 fi
 
 readonly GABB_USERNAME GABB_PASSWORD REFRESH_RATE
@@ -72,7 +74,7 @@ echo "gabbwireless version: $(awk '/__version__/ { print $3}' gabb/__init__.py |
 echo "Python version $(python3 --version | awk '{print $2}')"
 echo "-------------------------------------------------------"
 
-export MQTT_BROKER MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
+export MQTT_BROKER MQTT_PORT MQTT_USERNAME MQTT_PASSWORD LOG_LEVEL
 
 bashio::log.info "Starting Gabb Wireless..."
 if [ -z "$ENV_VARS" ]; then

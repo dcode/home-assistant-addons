@@ -19,10 +19,10 @@ map:
   - share
   - ssl:rw
 options:
-  debug: false
+  log_level: info
   env_vars: []
 schema:
-  debug: bool
+  log_level: list(debug|info|warning|error|fatal)
   gabb_username: email
   gabb_password: password
   env_vars:
