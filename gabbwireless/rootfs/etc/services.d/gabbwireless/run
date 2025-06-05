@@ -22,6 +22,11 @@ sleep 1
 if [ -v HASSIO_TOKEN ]; then
   declare -r CONFIG_PATH=/data/options.json
 
+  if [ -z "${BASHIO_VERSION}" ]; then
+    # shellcheck disable=SC1091
+    source /usr/lib/bashio/bashio.sh || exit 1
+  fi
+
   RUNMODE="addon"
   readonly RUNMODE
   LOG_LEVEL=$(bashio::config "log_level" || "info")
@@ -64,7 +69,7 @@ else
 fi
 
 readonly GABB_USERNAME GABB_PASSWORD REFRESH_RATE
-readonly MQTT_BROKER MQTT_PORT MQTT_PASSWORD
+readonly MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
 readonly ENV_VARS
 
 cd /app/
@@ -74,7 +79,7 @@ echo "gabbwireless version: $(awk '/__version__/ { print $3}' gabb/__init__.py |
 echo "Python version $(python3 --version | awk '{print $2}')"
 echo "-------------------------------------------------------"
 
-export MQTT_BROKER MQTT_PORT MQTT_USERNAME MQTT_PASSWORD LOG_LEVEL
+export MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD LOG_LEVEL
 
 bashio::log.info "Starting Gabb Wireless..."
 if [ -z "$ENV_VARS" ]; then
