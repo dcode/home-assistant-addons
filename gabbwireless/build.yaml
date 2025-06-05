@@ -14,4 +14,4 @@ labels:
   org.opencontainers.image.source: "https://github.com/dcode/home-assistant-addons"
   org.opencontainers.image.documentation: "https://github.com/dcode/home-assistant-addons/blob/master/gabbwireless/README.md"
 args:
-  GABBWIRELESS_REF: 0.1.1
+  GABBWIRELESS_REF: "heads/master"
