@@ -9,12 +9,12 @@ ARG BUILD_DESCRIPTION
 ARG BUILD_NAME
 ARG BUILD_REF
 
-ARG GABBWIRELESS_REF=0.1.1
+ARG GABBWIRELESS_REF="heads/master"
 
 WORKDIR /app
 
 RUN curl -o /tmp/gabbwireless_mqtt.tar.gz \
-  -L "https://github.com/jaycollett/gabbwireless_mqtt/archive/refs/tags/${GABBWIRELESS_REF}.tar.gz" \
+  -L "https://github.com/dcode/gabbwireless_mqtt/archive/refs/${GABBWIRELESS_REF}.tar.gz" \
   && tar xzvf /tmp/gabbwireless_mqtt.tar.gz -C /app --strip-components 1 \
   && rm /tmp/gabbwireless_mqtt.tar.gz \
   && python3 -m pip install --no-cache-dir -r requirements.txt
