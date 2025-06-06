@@ -44,6 +44,9 @@ if [ -v HASSIO_TOKEN ]; then
     bashio::log.info "MQTT connection details: host=${MQTT_HOST} port=${MQTT_PORT} user=${MQTT_USERNAME}"
   fi
 
+  GABB_USERNAME="$(bashio::config "gabb_username")"
+  GABB_PASSWORD="$(bashio::config "gabb_password")"
+  REFRESH_RATE="$(bashio::config "refresh_rate")"
   read -r -a ADDITIONAL_ENV_VARS <<<"$(bashio::config "env_vars")"
   if [ ${#ADDITIONAL_ENV_VARS[@]} -eq 0 ]; then
     bashio::log.info "No additional environment variables found"
@@ -80,6 +83,7 @@ echo "gabbwireless version: $(awk '/__version__/ { print $3}' gabb/__init__.py |
 echo "Python version $(python3 --version | awk '{print $2}')"
 echo "-------------------------------------------------------"
 
+export GABB_USERNAME GABB_PASSWORD REFRESH_RATE
 export MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD LOG_LEVEL
 
 bashio::log.info "Starting Gabb Wireless..."
