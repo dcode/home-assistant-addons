@@ -20,11 +20,13 @@ map:
   - ssl:rw
 options:
   log_level: info
+  refresh_rate: 1
   env_vars: []
 schema:
   log_level: list(debug|info|warning|error|fatal)
   gabb_username: email
   gabb_password: password
+  refresh_rate: int(1,)
   env_vars:
     - "match(^\\w+=.+$)" # Only allow VAR=VALUE
 services:
